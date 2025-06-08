@@ -25,7 +25,7 @@ interface RegisterData {
 
 // Base API configuration
 const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:3001/api";
+  import.meta.env.VITE_API_URL || "http://localhost:8080/api";
 
 class ApiService {
   private client: AxiosInstance;
