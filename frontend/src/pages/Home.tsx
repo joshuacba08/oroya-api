@@ -125,7 +125,7 @@ const Home: React.FC = () => {
                   onClick={handleLogout}
                   variant="outline"
                   size="sm"
-                  className="ml-4"
+                  className="ml-4 border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white hover:border-gray-500 transition-all duration-200"
                 >
                   Cerrar sesión
                 </Button>
@@ -134,7 +134,12 @@ const Home: React.FC = () => {
 
             {/* Mobile menu button */}
             <div className="md:hidden">
-              <Button onClick={handleLogout} variant="outline" size="sm">
+              <Button
+                onClick={handleLogout}
+                variant="outline"
+                size="sm"
+                className="border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white hover:border-gray-500 transition-all duration-200"
+              >
                 Cerrar sesión
               </Button>
             </div>
@@ -238,7 +243,7 @@ const Home: React.FC = () => {
               </h2>
               <div className="text-left space-y-3 max-w-2xl mx-auto">
                 <div className="flex items-start space-x-3">
-                  <div className="flex-shrink-0 w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-bold">
+                  <div className="flex-shrink-0 w-6 h-6 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full flex items-center justify-center text-sm font-bold shadow-lg">
                     1
                   </div>
                   <p className="text-muted-foreground">
@@ -249,7 +254,7 @@ const Home: React.FC = () => {
                   </p>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <div className="flex-shrink-0 w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-bold">
+                  <div className="flex-shrink-0 w-6 h-6 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full flex items-center justify-center text-sm font-bold shadow-lg">
                     2
                   </div>
                   <p className="text-muted-foreground">
@@ -260,7 +265,7 @@ const Home: React.FC = () => {
                   </p>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <div className="flex-shrink-0 w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-bold">
+                  <div className="flex-shrink-0 w-6 h-6 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full flex items-center justify-center text-sm font-bold shadow-lg">
                     3
                   </div>
                   <p className="text-muted-foreground">

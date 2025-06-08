@@ -112,7 +112,7 @@ const Onboarding: React.FC = () => {
             <Button
               onClick={handleContinueWithoutLogin}
               size="lg"
-              className="w-full sm:w-auto min-w-[200px] bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+              className="w-full sm:w-auto min-w-[200px] bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200"
             >
               Continuar sin cuenta
             </Button>
@@ -121,7 +121,7 @@ const Onboarding: React.FC = () => {
               onClick={handleGoToLogin}
               variant="outline"
               size="lg"
-              className="w-full sm:w-auto min-w-[200px] border-border hover:bg-accent hover:text-accent-foreground font-medium"
+              className="w-full sm:w-auto min-w-[200px] border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white hover:border-gray-500 font-medium transition-all duration-200"
             >
               Iniciar sesión
             </Button>

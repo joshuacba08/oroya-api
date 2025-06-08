@@ -87,7 +87,7 @@ const Login: React.FC = () => {
 
               <Button
                 type="submit"
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200"
                 size="lg"
               >
                 Iniciar Sesión
