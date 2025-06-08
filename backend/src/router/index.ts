@@ -1,6 +1,7 @@
 import { Router } from "express";
 import entitiesRouter from "./entities";
 import fieldsRouter from "./fields";
+import filesRouter from "./files";
 import projectsRouter from "./projects";
 
 const router = Router();
@@ -15,5 +16,8 @@ router.use("/entities", entitiesRouter);
 // Configurar rutas para campos
 router.use("/", fieldsRouter); // Para rutas como /entities/:entityId/fields
 router.use("/fields", fieldsRouter);
+
+// Configurar rutas para archivos
+router.use("/files", filesRouter);
 
 export default router;

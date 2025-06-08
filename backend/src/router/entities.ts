@@ -1,6 +1,11 @@
 import { Request, Response, Router } from "express";
+import { EntityRepository } from "../repositories/entityRepository";
+import { ProjectRepository } from "../repositories/projectRepository";
+import { generateUUID } from "../utils/uuid";
 
 const router = Router();
+const entityRepository = new EntityRepository();
+const projectRepository = new ProjectRepository();
 
 /**
  * @swagger
@@ -38,11 +43,21 @@ router.get(
     try {
       const { projectId } = req.params;
 
-      // TODO: Verificar que el proyecto existe
-      // TODO: Implementar lógica para obtener entidades del proyecto
-      const entities: any[] = [];
+      // Verificar que el proyecto existe
+      const projectExists = await projectRepository.exists(projectId);
+      if (!projectExists) {
+        res.status(404).json({
+          error: "Not Found",
+          message: "Proyecto no encontrado",
+        });
+        return;
+      }
+
+      // Obtener entidades del proyecto
+      const entities = await entityRepository.findByProjectId(projectId);
       res.json(entities);
     } catch (error) {
+      console.error("Error obtaining project entities:", error);
       res.status(500).json({
         error: "Internal Server Error",
         message: "Error interno del servidor",
@@ -106,19 +121,27 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // TODO: Verificar que el proyecto existe
-    // TODO: Implementar lógica para crear entidad en base de datos
-    const entity = {
-      id: generateUUID(),
-      projectId,
+    // Verificar que el proyecto existe
+    const projectExists = await projectRepository.exists(projectId);
+    if (!projectExists) {
+      res.status(404).json({
+        error: "Not Found",
+        message: "Proyecto no encontrado",
+      });
+      return;
+    }
+
+    // Crear entidad en base de datos
+    const entityId = generateUUID();
+    const entity = await entityRepository.create(entityId, {
+      project_id: projectId,
       name,
-      description: description || "",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+      description: description || undefined,
+    });
 
     res.status(201).json(entity);
   } catch (error) {
+    console.error("Error creating entity:", error);
     res.status(500).json({
       error: "Internal Server Error",
       message: "Error interno del servidor",
@@ -158,12 +181,20 @@ router.get("/:entityId", async (req: Request, res: Response): Promise<void> => {
   try {
     const { entityId } = req.params;
 
-    // TODO: Implementar lógica para obtener entidad específica
-    res.status(404).json({
-      error: "Not Found",
-      message: "Entidad no encontrada",
-    });
+    // Obtener entidad específica
+    const entity = await entityRepository.findById(entityId);
+
+    if (!entity) {
+      res.status(404).json({
+        error: "Not Found",
+        message: "Entidad no encontrada",
+      });
+      return;
+    }
+
+    res.json(entity);
   } catch (error) {
+    console.error("Error obtaining entity:", error);
     res.status(500).json({
       error: "Internal Server Error",
       message: "Error interno del servidor",
@@ -171,13 +202,6 @@ router.get("/:entityId", async (req: Request, res: Response): Promise<void> => {
   }
 });
 
-// Función temporal para generar UUIDs
-function generateUUID(): string {
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
-    const r = (Math.random() * 16) | 0;
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
+// UUID generation is now handled by the imported utility
 
 export default router;

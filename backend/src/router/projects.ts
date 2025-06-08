@@ -1,6 +1,9 @@
 import { Request, Response, Router } from "express";
+import { ProjectRepository } from "../repositories/projectRepository";
+import { generateUUID } from "../utils/uuid";
 
 const router = Router();
+const projectRepository = new ProjectRepository();
 
 /**
  * @swagger
@@ -51,17 +54,16 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // TODO: Implementar lógica para crear proyecto en base de datos
-    const project = {
-      id: generateUUID(),
+    // Crear proyecto en base de datos
+    const projectId = generateUUID();
+    const project = await projectRepository.create(projectId, {
       name,
-      description: description || "",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+      description: description || undefined,
+    });
 
     res.status(201).json(project);
   } catch (error) {
+    console.error("Error creating project:", error);
     res.status(500).json({
       error: "Internal Server Error",
       message: "Error interno del servidor",
@@ -87,10 +89,11 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
  */
 router.get("/", async (req: Request, res: Response): Promise<void> => {
   try {
-    // TODO: Implementar lógica para obtener proyectos de base de datos
-    const projects: any[] = [];
+    // Obtener todos los proyectos de la base de datos
+    const projects = await projectRepository.findAll();
     res.json(projects);
   } catch (error) {
+    console.error("Error obtaining projects:", error);
     res.status(500).json({
       error: "Internal Server Error",
       message: "Error interno del servidor",
@@ -132,12 +135,20 @@ router.get(
     try {
       const { projectId } = req.params;
 
-      // TODO: Implementar lógica para obtener proyecto específico
-      res.status(404).json({
-        error: "Not Found",
-        message: "Proyecto no encontrado",
-      });
+      // Obtener proyecto específico
+      const project = await projectRepository.findById(projectId);
+
+      if (!project) {
+        res.status(404).json({
+          error: "Not Found",
+          message: "Proyecto no encontrado",
+        });
+        return;
+      }
+
+      res.json(project);
     } catch (error) {
+      console.error("Error obtaining project:", error);
       res.status(500).json({
         error: "Internal Server Error",
         message: "Error interno del servidor",
@@ -146,13 +157,6 @@ router.get(
   }
 );
 
-// Función temporal para generar UUIDs (debería ser reemplazada por una librería)
-function generateUUID(): string {
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
-    const r = (Math.random() * 16) | 0;
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
+// UUID generation is now handled by the imported utility
 
 export default router;

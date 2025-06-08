@@ -6,7 +6,7 @@ const Onboarding: React.FC = () => {
   const navigate = useNavigate();
 
   const handleContinueWithoutLogin = () => {
-    navigate("/home");
+    navigate("/projects");
   };
 
   const handleGoToLogin = () => {

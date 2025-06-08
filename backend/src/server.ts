@@ -1,5 +1,6 @@
 import cors from "cors";
 import express, { Application } from "express";
+import { closeDatabase, createTables, initDatabase } from "./config/database";
 import { specs, swaggerUi } from "./config/swagger";
 import apiRouter from "./router";
 
@@ -54,15 +55,53 @@ class Server {
     });
   }
 
-  public start(): void {
-    this.app.listen(this.port, () => {
-      console.log(`🚀 Server is running on port ${this.port}`);
-      console.log(
-        `📚 API Documentation: http://localhost:${this.port}/api-docs`
-      );
-      console.log(`🏥 Health Check: http://localhost:${this.port}/health`);
-    });
+  public async start(): Promise<void> {
+    try {
+      // Inicializar base de datos
+      console.log("🔄 Inicializando base de datos SQLite...");
+      await initDatabase();
+
+      // Crear tablas
+      console.log("🔄 Creando tablas...");
+      await createTables();
+
+      console.log("✅ Base de datos inicializada correctamente");
+
+      this.app.listen(this.port, () => {
+        console.log(`🚀 Server is running on port ${this.port}`);
+        console.log(
+          `📚 API Documentation: http://localhost:${this.port}/api-docs`
+        );
+        console.log(`🏥 Health Check: http://localhost:${this.port}/health`);
+      });
+    } catch (error) {
+      console.error("❌ Error inicializando la aplicación:", error);
+      process.exit(1);
+    }
+  }
+
+  public async stop(): Promise<void> {
+    try {
+      console.log("🔄 Cerrando conexión a la base de datos...");
+      await closeDatabase();
+      console.log("✅ Conexión cerrada correctamente");
+    } catch (error) {
+      console.error("❌ Error cerrando la base de datos:", error);
+    }
   }
 }
+
+// Manejo de señales de terminación
+process.on("SIGINT", async () => {
+  console.log("\n🔄 Recibida señal SIGINT, cerrando servidor...");
+  // Aquí podrías llamar a server.stop() si tuvieras una referencia al servidor
+  process.exit(0);
+});
+
+process.on("SIGTERM", async () => {
+  console.log("\n🔄 Recibida señal SIGTERM, cerrando servidor...");
+  // Aquí podrías llamar a server.stop() si tuvieras una referencia al servidor
+  process.exit(0);
+});
 
 export default Server;

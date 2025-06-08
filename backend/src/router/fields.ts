@@ -1,6 +1,11 @@
 import { Request, Response, Router } from "express";
+import { EntityRepository } from "../repositories/entityRepository";
+import { FieldRepository } from "../repositories/fieldRepository";
+import { generateUUID } from "../utils/uuid";
 
 const router = Router();
+const fieldRepository = new FieldRepository();
+const entityRepository = new EntityRepository();
 
 /**
  * @swagger
@@ -32,7 +37,7 @@ const router = Router();
  *                 example: "email"
  *               type:
  *                 type: string
- *                 enum: [string, number, boolean, date]
+ *                 enum: [string, number, boolean, date, text, integer, decimal, file, image, document]
  *                 description: Tipo de dato del campo
  *                 example: "string"
  *               required:
@@ -64,7 +69,18 @@ router.post(
   async (req: Request, res: Response): Promise<void> => {
     try {
       const { entityId } = req.params;
-      const { name, type, required } = req.body;
+      const {
+        name,
+        type,
+        is_required,
+        is_unique,
+        default_value,
+        max_length,
+        description,
+        accepts_multiple,
+        max_file_size,
+        allowed_extensions,
+      } = req.body;
 
       if (!name || !type) {
         res.status(400).json({
@@ -74,28 +90,98 @@ router.post(
         return;
       }
 
-      const validTypes = ["string", "number", "boolean", "date"];
+      const validTypes = [
+        "string",
+        "number",
+        "boolean",
+        "date",
+        "text",
+        "integer",
+        "decimal",
+        "file",
+        "image",
+        "document",
+      ];
       if (!validTypes.includes(type)) {
         res.status(400).json({
           error: "Bad Request",
           message:
-            "Tipo de dato inválido. Tipos permitidos: string, number, boolean, date",
+            "Tipo de dato inválido. Tipos permitidos: string, number, boolean, date, text, integer, decimal, file, image, document",
         });
         return;
       }
 
-      // TODO: Verificar que la entidad existe
-      // TODO: Implementar lógica para crear campo en base de datos
-      const field = {
-        id: generateUUID(),
-        entityId,
+      // Verificar que la entidad existe
+      const entityExists = await entityRepository.exists(entityId);
+      if (!entityExists) {
+        res.status(404).json({
+          error: "Not Found",
+          message: "Entidad no encontrada",
+        });
+        return;
+      }
+
+      // Verificar que no existe un campo con el mismo nombre en la entidad
+      const fieldExists = await fieldRepository.existsByNameInEntity(
+        name,
+        entityId
+      );
+      if (fieldExists) {
+        res.status(400).json({
+          error: "Bad Request",
+          message: "Ya existe un campo con ese nombre en la entidad",
+        });
+        return;
+      }
+
+      // Validaciones específicas para campos de archivo
+      if (["file", "image", "document"].includes(type)) {
+        if (max_file_size && max_file_size > 50 * 1024 * 1024) {
+          // 50MB máximo
+          res.status(400).json({
+            error: "Bad Request",
+            message: "El tamaño máximo de archivo no puede exceder 50MB",
+          });
+          return;
+        }
+
+        if (allowed_extensions && typeof allowed_extensions === "string") {
+          const extensions = allowed_extensions
+            .split(",")
+            .map((ext) => ext.trim());
+          const validExtensions = /^\.[a-zA-Z0-9]+$/;
+          for (const ext of extensions) {
+            if (!validExtensions.test(ext)) {
+              res.status(400).json({
+                error: "Bad Request",
+                message:
+                  "Las extensiones deben tener el formato .ext (ej: .jpg, .pdf)",
+              });
+              return;
+            }
+          }
+        }
+      }
+
+      // Crear campo en base de datos
+      const fieldId = generateUUID();
+      const field = await fieldRepository.create(fieldId, {
+        entity_id: entityId,
         name,
         type,
-        required: required || false,
-      };
+        is_required: is_required || false,
+        is_unique: is_unique || false,
+        default_value: default_value || undefined,
+        max_length: max_length || undefined,
+        description: description || undefined,
+        accepts_multiple: accepts_multiple || false,
+        max_file_size: max_file_size || undefined,
+        allowed_extensions: allowed_extensions || undefined,
+      });
 
       res.status(201).json(field);
     } catch (error) {
+      console.error("Error creating field:", error);
       res.status(500).json({
         error: "Internal Server Error",
         message: "Error interno del servidor",
@@ -140,11 +226,21 @@ router.get(
     try {
       const { entityId } = req.params;
 
-      // TODO: Verificar que la entidad existe
-      // TODO: Implementar lógica para obtener campos de la entidad
-      const fields: any[] = [];
+      // Verificar que la entidad existe
+      const entityExists = await entityRepository.exists(entityId);
+      if (!entityExists) {
+        res.status(404).json({
+          error: "Not Found",
+          message: "Entidad no encontrada",
+        });
+        return;
+      }
+
+      // Obtener campos de la entidad
+      const fields = await fieldRepository.findByEntityId(entityId);
       res.json(fields);
     } catch (error) {
+      console.error("Error obtaining entity fields:", error);
       res.status(500).json({
         error: "Internal Server Error",
         message: "Error interno del servidor",
@@ -207,14 +303,85 @@ router.get(
 router.put("/:fieldId", async (req: Request, res: Response): Promise<void> => {
   try {
     const { fieldId } = req.params;
-    const { name, type, required } = req.body;
+    const {
+      name,
+      type,
+      is_required,
+      is_unique,
+      default_value,
+      max_length,
+      description,
+    } = req.body;
 
-    // TODO: Implementar lógica para actualizar campo
-    res.status(404).json({
-      error: "Not Found",
-      message: "Campo no encontrado",
+    // Verificar que el campo existe
+    const existingField = await fieldRepository.findById(fieldId);
+    if (!existingField) {
+      res.status(404).json({
+        error: "Not Found",
+        message: "Campo no encontrado",
+      });
+      return;
+    }
+
+    // Validar tipo si se proporciona
+    if (type) {
+      const validTypes = [
+        "string",
+        "number",
+        "boolean",
+        "date",
+        "text",
+        "integer",
+        "decimal",
+      ];
+      if (!validTypes.includes(type)) {
+        res.status(400).json({
+          error: "Bad Request",
+          message:
+            "Tipo de dato inválido. Tipos permitidos: string, number, boolean, date, text, integer, decimal",
+        });
+        return;
+      }
+    }
+
+    // Verificar que no existe otro campo con el mismo nombre en la entidad (si se cambia el nombre)
+    if (name && name !== existingField.name) {
+      const fieldExists = await fieldRepository.existsByNameInEntity(
+        name,
+        existingField.entity_id,
+        fieldId
+      );
+      if (fieldExists) {
+        res.status(400).json({
+          error: "Bad Request",
+          message: "Ya existe un campo con ese nombre en la entidad",
+        });
+        return;
+      }
+    }
+
+    // Actualizar campo
+    const updatedField = await fieldRepository.update(fieldId, {
+      name,
+      type,
+      is_required,
+      is_unique,
+      default_value,
+      max_length,
+      description,
     });
+
+    if (!updatedField) {
+      res.status(404).json({
+        error: "Not Found",
+        message: "Campo no encontrado",
+      });
+      return;
+    }
+
+    res.json(updatedField);
   } catch (error) {
+    console.error("Error updating field:", error);
     res.status(500).json({
       error: "Internal Server Error",
       message: "Error interno del servidor",
@@ -252,12 +419,20 @@ router.delete(
     try {
       const { fieldId } = req.params;
 
-      // TODO: Implementar lógica para eliminar campo
-      res.status(404).json({
-        error: "Not Found",
-        message: "Campo no encontrado",
-      });
+      // Eliminar campo
+      const deleted = await fieldRepository.delete(fieldId);
+
+      if (!deleted) {
+        res.status(404).json({
+          error: "Not Found",
+          message: "Campo no encontrado",
+        });
+        return;
+      }
+
+      res.status(204).send();
     } catch (error) {
+      console.error("Error deleting field:", error);
       res.status(500).json({
         error: "Internal Server Error",
         message: "Error interno del servidor",
@@ -266,13 +441,6 @@ router.delete(
   }
 );
 
-// Función temporal para generar UUIDs
-function generateUUID(): string {
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
-    const r = (Math.random() * 16) | 0;
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
+// UUID generation is now handled by the imported utility
 
 export default router;

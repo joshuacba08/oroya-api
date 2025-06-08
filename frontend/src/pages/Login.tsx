@@ -11,8 +11,8 @@ const Login: React.FC = () => {
     e.preventDefault();
     // TODO: Implement login logic
     console.log("Login attempted with:", { email, password });
-    // For now, navigate to home after "login"
-    navigate("/home");
+    // For now, navigate to projects after "login"
+    navigate("/projects");
   };
 
   const handleCreateAccount = () => {
