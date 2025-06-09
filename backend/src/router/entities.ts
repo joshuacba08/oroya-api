@@ -1,11 +1,13 @@
 import { Request, Response, Router } from "express";
 import { EntityRepository } from "../repositories/entityRepository";
+import { FieldRepository } from "../repositories/fieldRepository";
 import { ProjectRepository } from "../repositories/projectRepository";
 import { generateUUID } from "../utils/uuid";
 
 const router = Router();
 const entityRepository = new EntityRepository();
 const projectRepository = new ProjectRepository();
+const fieldRepository = new FieldRepository();
 
 /**
  * @swagger
@@ -564,6 +566,186 @@ router.delete(
       });
     } catch (error) {
       console.error("Error deleting entity:", error);
+      res.status(500).json({
+        error: "Internal Server Error",
+        message: "Error interno del servidor",
+      });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/entities/{entityId}/primary-keys:
+ *   get:
+ *     summary: Obtener campos que son claves primarias de una entidad
+ *     tags: [Entities]
+ *     parameters:
+ *       - in: path
+ *         name: entityId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID de la entidad
+ *     responses:
+ *       200:
+ *         description: Lista de campos que son claves primarias
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Field'
+ *       404:
+ *         description: Entidad no encontrada
+ */
+router.get(
+  "/entities/:entityId/primary-keys",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { entityId } = req.params;
+
+      // Verificar que la entidad existe
+      const entityExists = await entityRepository.exists(entityId);
+      if (!entityExists) {
+        res.status(404).json({
+          error: "Not Found",
+          message: "Entidad no encontrada",
+        });
+        return;
+      }
+
+      const primaryKeys = await fieldRepository.findPrimaryKeysByEntityId(
+        entityId
+      );
+      res.json(primaryKeys);
+    } catch (error) {
+      console.error("Error obtaining primary keys:", error);
+      res.status(500).json({
+        error: "Internal Server Error",
+        message: "Error interno del servidor",
+      });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/entities/{entityId}/foreign-keys:
+ *   get:
+ *     summary: Obtener campos que son claves foráneas de una entidad
+ *     tags: [Entities]
+ *     parameters:
+ *       - in: path
+ *         name: entityId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID de la entidad
+ *     responses:
+ *       200:
+ *         description: Lista de campos que son claves foráneas con detalles
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 allOf:
+ *                   - $ref: '#/components/schemas/Field'
+ *                   - type: object
+ *                     properties:
+ *                       foreign_entity_name:
+ *                         type: string
+ *                         description: Nombre de la entidad referenciada
+ *                       foreign_field_name:
+ *                         type: string
+ *                         description: Nombre del campo referenciado
+ *       404:
+ *         description: Entidad no encontrada
+ */
+router.get(
+  "/entities/:entityId/foreign-keys",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { entityId } = req.params;
+
+      // Verificar que la entidad existe
+      const entityExists = await entityRepository.exists(entityId);
+      if (!entityExists) {
+        res.status(404).json({
+          error: "Not Found",
+          message: "Entidad no encontrada",
+        });
+        return;
+      }
+
+      const foreignKeys = await fieldRepository.findWithForeignKeyDetails(
+        entityId
+      );
+      // Filtrar solo los campos que son claves foráneas
+      const foreignKeyFields = foreignKeys.filter(
+        (field) => field.is_foreign_key
+      );
+      res.json(foreignKeyFields);
+    } catch (error) {
+      console.error("Error obtaining foreign keys:", error);
+      res.status(500).json({
+        error: "Internal Server Error",
+        message: "Error interno del servidor",
+      });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/entities/{entityId}/referenced-by:
+ *   get:
+ *     summary: Obtener campos de otras entidades que referencian a esta entidad
+ *     tags: [Entities]
+ *     parameters:
+ *       - in: path
+ *         name: entityId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID de la entidad
+ *     responses:
+ *       200:
+ *         description: Lista de campos que referencian a esta entidad
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Field'
+ *       404:
+ *         description: Entidad no encontrada
+ */
+router.get(
+  "/entities/:entityId/referenced-by",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { entityId } = req.params;
+
+      // Verificar que la entidad existe
+      const entityExists = await entityRepository.exists(entityId);
+      if (!entityExists) {
+        res.status(404).json({
+          error: "Not Found",
+          message: "Entidad no encontrada",
+        });
+        return;
+      }
+
+      const referencingFields =
+        await fieldRepository.findFieldsReferencingEntity(entityId);
+      res.json(referencingFields);
+    } catch (error) {
+      console.error("Error obtaining referencing fields:", error);
       res.status(500).json({
         error: "Internal Server Error",
         message: "Error interno del servidor",

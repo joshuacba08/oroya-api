@@ -157,9 +157,17 @@ export const finalizeLogging = (
         ip: req.logData.ip_address,
       });
 
-      // Guardar en base de datos
+      // Guardar en base de datos y emitir en tiempo real
       try {
         await saveLogToDatabase(req.logData as LogData);
+
+        // Emitir log en tiempo real via Socket.io
+        try {
+          const { emitLogToClients } = await import("../config/socket");
+          emitLogToClients(req.logData as LogData);
+        } catch (socketError) {
+          // Socket.io no está disponible, continúar sin error
+        }
       } catch (error) {
         logger.error("❌ Error saving log to database:", error);
       }

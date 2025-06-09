@@ -51,10 +51,44 @@ export const fieldSchema = z.object({
       /^[a-z][a-zA-Z0-9]*$/,
       "Debe comenzar con minúscula y usar camelCase (ej: firstName, isActive)"
     ),
-  type: z.enum(["string", "number", "boolean", "date"] as const, {
-    errorMap: () => ({ message: "Tipo de dato inválido" }),
-  }),
+  type: z.enum(
+    [
+      "string",
+      "number",
+      "boolean",
+      "date",
+      "text",
+      "integer",
+      "decimal",
+      "file",
+      "image",
+      "document",
+    ] as const,
+    {
+      errorMap: () => ({ message: "Tipo de dato inválido" }),
+    }
+  ),
   required: z.boolean(),
+  isUnique: z.boolean().optional(),
+  defaultValue: z.string().nullable().optional(),
+  maxLength: z
+    .number()
+    .positive("La longitud máxima debe ser un número positivo")
+    .nullable()
+    .optional(),
+  description: z
+    .string()
+    .max(500, "La descripción no puede exceder 500 caracteres")
+    .nullable()
+    .optional()
+    .or(z.literal("")),
+  acceptsMultiple: z.boolean().optional(),
+  maxFileSize: z
+    .number()
+    .positive("El tamaño máximo debe ser un número positivo")
+    .nullable()
+    .optional(),
+  allowedExtensions: z.string().nullable().optional(),
 });
 
 export type FieldFormData = z.infer<typeof fieldSchema>;

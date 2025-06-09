@@ -204,6 +204,10 @@ export const createTables = (): Promise<void> => {
           type TEXT NOT NULL,
           is_required BOOLEAN DEFAULT false,
           is_unique BOOLEAN DEFAULT false,
+          is_primary_key BOOLEAN DEFAULT false,
+          is_foreign_key BOOLEAN DEFAULT false,
+          foreign_entity_id TEXT,
+          foreign_field_id TEXT,
           default_value TEXT,
           max_length INTEGER,
           description TEXT,
@@ -212,7 +216,9 @@ export const createTables = (): Promise<void> => {
           allowed_extensions TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY (entity_id) REFERENCES entities(id) ON DELETE CASCADE
+          FOREIGN KEY (entity_id) REFERENCES entities(id) ON DELETE CASCADE,
+          FOREIGN KEY (foreign_entity_id) REFERENCES entities(id) ON DELETE SET NULL,
+          FOREIGN KEY (foreign_field_id) REFERENCES fields(id) ON DELETE SET NULL
         )
       `;
 
@@ -246,6 +252,70 @@ export const createTables = (): Promise<void> => {
           FOREIGN KEY (field_id) REFERENCES fields(id) ON DELETE CASCADE,
           FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE CASCADE
         )
+      `;
+
+      // Tabla de relaciones entre entidades
+      const createEntityRelationshipsTable = `
+        CREATE TABLE IF NOT EXISTS entity_relationships (
+          id TEXT PRIMARY KEY,
+          source_entity_id TEXT NOT NULL,
+          target_entity_id TEXT NOT NULL,
+          relationship_type TEXT NOT NULL CHECK (relationship_type IN ('one_to_one', 'one_to_many', 'many_to_one', 'many_to_many')),
+          source_field_id TEXT,
+          target_field_id TEXT,
+          name TEXT,
+          description TEXT,
+          is_required BOOLEAN DEFAULT false,
+          cascade_delete BOOLEAN DEFAULT false,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (source_entity_id) REFERENCES entities(id) ON DELETE CASCADE,
+          FOREIGN KEY (target_entity_id) REFERENCES entities(id) ON DELETE CASCADE,
+          FOREIGN KEY (source_field_id) REFERENCES fields(id) ON DELETE SET NULL,
+          FOREIGN KEY (target_field_id) REFERENCES fields(id) ON DELETE SET NULL,
+          UNIQUE(source_entity_id, target_entity_id, source_field_id, target_field_id)
+        )
+      `;
+
+      // Tabla de logs de API
+      const createApiLogsTable = `
+        CREATE TABLE IF NOT EXISTS api_logs (
+          id TEXT PRIMARY KEY,
+          timestamp DATETIME NOT NULL,
+          method TEXT NOT NULL,
+          url TEXT NOT NULL,
+          status_code INTEGER,
+          response_time INTEGER,
+          ip_address TEXT NOT NULL,
+          user_agent TEXT,
+          browser TEXT,
+          os TEXT,
+          device TEXT,
+          project_id TEXT,
+          entity_type TEXT,
+          entity_id TEXT,
+          user_id TEXT,
+          request_size INTEGER,
+          response_size INTEGER,
+          error_message TEXT,
+          query_params TEXT,
+          body_params TEXT,
+          headers TEXT,
+          referrer TEXT,
+          session_id TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL
+        )
+      `;
+
+      // Crear índices para mejorar rendimiento de consultas de estadísticas
+      const createApiLogsIndexes = `
+        CREATE INDEX IF NOT EXISTS idx_api_logs_timestamp ON api_logs(timestamp);
+        CREATE INDEX IF NOT EXISTS idx_api_logs_project_id ON api_logs(project_id);
+        CREATE INDEX IF NOT EXISTS idx_api_logs_status_code ON api_logs(status_code);
+        CREATE INDEX IF NOT EXISTS idx_api_logs_method ON api_logs(method);
+        CREATE INDEX IF NOT EXISTS idx_api_logs_url ON api_logs(url);
+        CREATE INDEX IF NOT EXISTS idx_api_logs_ip_address ON api_logs(ip_address);
       `;
 
       // Crear triggers para actualizar updated_at
@@ -285,16 +355,29 @@ export const createTables = (): Promise<void> => {
         END
       `;
 
+      const createEntityRelationshipsUpdateTrigger = `
+        CREATE TRIGGER IF NOT EXISTS update_entity_relationships_updated_at
+        AFTER UPDATE ON entity_relationships
+        FOR EACH ROW
+        BEGIN
+          UPDATE entity_relationships SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+        END
+      `;
+
       // Ejecutar todas las queries
       database.exec(createProjectsTable);
       database.exec(createEntitiesTable);
       database.exec(createFieldsTable);
       database.exec(createFilesTable);
       database.exec(createFieldFilesTable);
+      database.exec(createEntityRelationshipsTable);
+      database.exec(createApiLogsTable);
+      database.exec(createApiLogsIndexes);
       database.exec(createProjectsUpdateTrigger);
       database.exec(createEntitiesUpdateTrigger);
       database.exec(createFieldsUpdateTrigger);
       database.exec(createFilesUpdateTrigger);
+      database.exec(createEntityRelationshipsUpdateTrigger);
 
       console.log("Todas las tablas creadas exitosamente.");
       resolve();

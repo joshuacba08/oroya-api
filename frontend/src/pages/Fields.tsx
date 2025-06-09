@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import EditField from "../components/forms/EditField";
+import { FieldForm } from "../components/forms/FieldForm";
 import { Button } from "../components/ui/button";
-import {
-  useEntityStore,
-  useFieldStore,
-  useProjectStore,
-  type FieldType,
-} from "../stores";
+import { useEntityStore, useFieldStore, useProjectStore } from "../stores";
+import { Field } from "../stores/fieldStore";
+import { FieldFormData } from "../validation/schemas";
 
 const Fields: React.FC = () => {
   const navigate = useNavigate();
@@ -27,18 +26,11 @@ const Fields: React.FC = () => {
     createField,
     deleteField,
     getFieldsByEntityId,
+    updateFieldRemote,
   } = useFieldStore();
 
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [newField, setNewField] = useState<{
-    name: string;
-    type: FieldType;
-    required: boolean;
-  }>({
-    name: "",
-    type: "string",
-    required: false,
-  });
+  const [editingField, setEditingField] = useState<string | null>(null);
 
   const handleLogout = () => {
     navigate("/");
@@ -52,19 +44,25 @@ const Fields: React.FC = () => {
     navigate(`/projects/${projectId}/entities`);
   };
 
-  const handleCreateField = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreateField = async (data: FieldFormData) => {
     if (!projectId || !entityId) return;
 
     try {
+      // Transform FieldFormData to Field format
       await createField(projectId, {
         entityId: entityId,
-        name: newField.name,
-        type: newField.type,
-        required: newField.required,
+        name: data.name,
+        type: data.type,
+        required: data.required,
+        isUnique: data.isUnique,
+        defaultValue: data.defaultValue || null,
+        maxLength: data.maxLength || null,
+        description: data.description || null,
+        acceptsMultiple: data.acceptsMultiple,
+        maxFileSize: data.maxFileSize || null,
+        allowedExtensions: data.allowedExtensions || null,
       });
 
-      setNewField({ name: "", type: "string", required: false });
       setShowCreateForm(false);
     } catch (error) {
       console.error("Error creating field:", error);
@@ -76,6 +74,17 @@ const Fields: React.FC = () => {
       deleteField(fieldId);
     } catch (error) {
       console.error("Error deleting field:", error);
+    }
+  };
+
+  const handleEditField = async (fieldId: string, data: Partial<Field>) => {
+    try {
+      if (projectId && entityId) {
+        await updateFieldRemote(projectId, entityId, fieldId, data);
+        setEditingField(null);
+      }
+    } catch (error) {
+      console.error("Error updating field:", error);
     }
   };
 
@@ -113,13 +122,6 @@ const Fields: React.FC = () => {
 
   // Get fields for current entity
   const entityFields = entityId ? getFieldsByEntityId(entityId) : [];
-
-  const fieldTypes = [
-    { value: "string", label: "Texto (string)" },
-    { value: "number", label: "Número (number)" },
-    { value: "boolean", label: "Booleano (boolean)" },
-    { value: "date", label: "Fecha (date)" },
-  ];
 
   if (loading) {
     return (
@@ -294,90 +296,12 @@ const Fields: React.FC = () => {
               <h2 className="text-xl font-semibold text-foreground mb-4">
                 Crear Nuevo Campo
               </h2>
-              <form onSubmit={handleCreateField} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
-                      Nombre del Campo *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={newField.name}
-                      onChange={(e) =>
-                        setNewField({ ...newField, name: e.target.value })
-                      }
-                      className="w-full px-3 py-2 bg-background border border-border rounded-md text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                      placeholder="Ej: email, age, isActive"
-                      disabled={loading}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
-                      Tipo de Dato *
-                    </label>
-                    <select
-                      value={newField.type}
-                      onChange={(e) =>
-                        setNewField({
-                          ...newField,
-                          type: e.target.value as FieldType,
-                        })
-                      }
-                      className="w-full px-3 py-2 bg-background border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                      disabled={loading}
-                    >
-                      {fieldTypes.map((type) => (
-                        <option key={type.value} value={type.value}>
-                          {type.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="required"
-                    checked={newField.required}
-                    onChange={(e) =>
-                      setNewField({ ...newField, required: e.target.checked })
-                    }
-                    className="h-4 w-4 text-primary focus:ring-primary border-border rounded"
-                    disabled={loading}
-                  />
-                  <label
-                    htmlFor="required"
-                    className="ml-2 text-sm text-foreground"
-                  >
-                    Campo requerido
-                  </label>
-                </div>
-                <div className="flex space-x-3">
-                  <Button
-                    type="submit"
-                    className="bg-primary hover:bg-primary/90"
-                    disabled={loading}
-                  >
-                    {loading ? "Creando..." : "Crear Campo"}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setShowCreateForm(false);
-                      setNewField({
-                        name: "",
-                        type: "string",
-                        required: false,
-                      });
-                    }}
-                    disabled={loading}
-                  >
-                    Cancelar
-                  </Button>
-                </div>
-              </form>
+              <FieldForm
+                onSubmit={handleCreateField}
+                onCancel={() => setShowCreateForm(false)}
+                entityId={entityId!}
+                loading={loading}
+              />
             </div>
           )}
 
@@ -421,57 +345,140 @@ const Fields: React.FC = () => {
               </div>
               <div className="divide-y divide-border">
                 {entityFields.map((field) => (
-                  <div
-                    key={field.id}
-                    className="px-6 py-4 flex items-center justify-between"
-                  >
-                    <div className="flex items-center space-x-4">
-                      <div className="flex-shrink-0">
-                        <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center">
-                          <svg
-                            className="w-4 h-4 text-primary"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                            />
-                          </svg>
-                        </div>
-                      </div>
-                      <div>
-                        <div className="flex items-center space-x-2">
-                          <h4 className="text-foreground font-medium">
-                            {field.name}
-                          </h4>
-                          {field.required && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                              Requerido
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          Tipo:{" "}
-                          {
-                            fieldTypes.find((t) => t.value === field.type)
-                              ?.label
+                  <div key={field.id}>
+                    {editingField === field.id ? (
+                      <div className="px-6 py-4">
+                        <h4 className="text-lg font-semibold text-foreground mb-4">
+                          Editar Campo
+                        </h4>
+                        <EditField
+                          field={field}
+                          onSave={(data: Partial<Field>) =>
+                            handleEditField(field.id, data)
                           }
-                        </p>
+                          onCancel={() => setEditingField(null)}
+                          loading={loading}
+                        />
                       </div>
-                    </div>
-                    <Button
-                      onClick={() => handleDeleteField(field.id)}
-                      variant="outline"
-                      size="sm"
-                      className="text-red-600 border-red-300 hover:bg-red-50 hover:border-red-400 dark:text-red-400 dark:border-red-600 dark:hover:bg-red-900"
-                      disabled={loading}
-                    >
-                      Eliminar
-                    </Button>
+                    ) : (
+                      <div className="px-6 py-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-start space-x-4 flex-1">
+                            <div className="flex-shrink-0">
+                              <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center">
+                                <svg
+                                  className="w-4 h-4 text-primary"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                                  />
+                                </svg>
+                              </div>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center space-x-2 mb-2">
+                                <h4 className="text-foreground font-medium text-lg">
+                                  {field.name}
+                                </h4>
+                                <div className="flex space-x-1">
+                                  {field.required && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                                      Requerido
+                                    </span>
+                                  )}
+                                  {field.isUnique && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                      Único
+                                    </span>
+                                  )}
+                                  {field.acceptsMultiple && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                      Múltiple
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-muted-foreground">
+                                <div>
+                                  <span className="font-medium">Tipo:</span>{" "}
+                                  {field.type}
+                                </div>
+                                {field.defaultValue && (
+                                  <div>
+                                    <span className="font-medium">
+                                      Valor por defecto:
+                                    </span>{" "}
+                                    {field.defaultValue}
+                                  </div>
+                                )}
+                                {field.maxLength && (
+                                  <div>
+                                    <span className="font-medium">
+                                      Longitud máxima:
+                                    </span>{" "}
+                                    {field.maxLength}
+                                  </div>
+                                )}
+                                {field.maxFileSize && (
+                                  <div>
+                                    <span className="font-medium">
+                                      Tamaño máximo:
+                                    </span>{" "}
+                                    {field.maxFileSize}MB
+                                  </div>
+                                )}
+                                {field.allowedExtensions && (
+                                  <div className="md:col-span-2">
+                                    <span className="font-medium">
+                                      Extensiones:
+                                    </span>{" "}
+                                    {field.allowedExtensions}
+                                  </div>
+                                )}
+                              </div>
+
+                              {field.description && (
+                                <div className="mt-3 p-3 bg-muted/50 rounded-md">
+                                  <p className="text-sm text-muted-foreground">
+                                    <span className="font-medium">
+                                      Descripción:
+                                    </span>{" "}
+                                    {field.description}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex space-x-2">
+                            <Button
+                              onClick={() => setEditingField(field.id)}
+                              variant="outline"
+                              size="sm"
+                              className="text-primary border-primary/30 hover:bg-primary/10"
+                              disabled={loading}
+                            >
+                              Editar
+                            </Button>
+                            <Button
+                              onClick={() => handleDeleteField(field.id)}
+                              variant="outline"
+                              size="sm"
+                              className="text-red-600 border-red-300 hover:bg-red-50 hover:border-red-400 dark:text-red-400 dark:border-red-600 dark:hover:bg-red-900"
+                              disabled={loading}
+                            >
+                              Eliminar
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

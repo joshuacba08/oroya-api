@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useEntityStore } from "./entityStore";
 import { useFieldStore } from "./fieldStore";
 import { useProjectStore } from "./projectStore";
@@ -28,8 +29,13 @@ export const useProjectActions = () =>
 // Entity selectors
 export const useEntityList = () => useEntityStore((state) => state.entities);
 
-export const useEntitiesByProjectId = (projectId: string) =>
-  useEntityStore((state) => state.getEntitiesByProjectId(projectId));
+export const useEntitiesByProjectId = (projectId: string) => {
+  const entities = useEntityStore((state) => state.entities);
+  return useMemo(
+    () => entities.filter((e) => e.projectId === projectId),
+    [entities, projectId]
+  );
+};
 
 export const useCurrentEntity = () =>
   useEntityStore((state) => state.currentEntity);
@@ -54,8 +60,13 @@ export const useEntityActions = () =>
 // Field selectors
 export const useFieldList = () => useFieldStore((state) => state.fields);
 
-export const useFieldsByEntityId = (entityId: string) =>
-  useFieldStore((state) => state.getFieldsByEntityId(entityId));
+export const useFieldsByEntityId = (entityId: string) => {
+  const fields = useFieldStore((state) => state.fields);
+  return useMemo(
+    () => fields.filter((f) => f.entityId === entityId),
+    [fields, entityId]
+  );
+};
 
 export const useFieldById = (id: string) =>
   useFieldStore((state) => state.getFieldById(id));
@@ -91,14 +102,17 @@ export const useEntityWithFields = (entityId: string) => {
   const entity = useEntityById(entityId);
   const fields = useFieldsByEntityId(entityId);
 
-  return {
-    entity,
-    fields,
-    hasFields: fields.length > 0,
-    fieldCount: fields.length,
-    requiredFields: fields.filter((f) => f.required),
-    optionalFields: fields.filter((f) => !f.required),
-  };
+  return useMemo(
+    () => ({
+      entity,
+      fields,
+      hasFields: fields.length > 0,
+      fieldCount: fields.length,
+      requiredFields: fields.filter((f) => f.required),
+      optionalFields: fields.filter((f) => !f.required),
+    }),
+    [entity, fields]
+  );
 };
 
 // Loading state selectors
@@ -125,9 +139,10 @@ export const useProjectStats = () =>
     hasProjects: state.projects.length > 0,
   }));
 
-export const useEntityStats = (projectId?: string) =>
-  useEntityStore((state) => {
-    const allEntities = state.entities;
+export const useEntityStats = (projectId?: string) => {
+  const allEntities = useEntityStore((state) => state.entities);
+
+  return useMemo(() => {
     const projectEntities = projectId
       ? allEntities.filter((e) => e.projectId === projectId)
       : allEntities;
@@ -140,11 +155,13 @@ export const useEntityStats = (projectId?: string) =>
         return acc;
       }, {} as Record<string, number>),
     };
-  });
+  }, [allEntities, projectId]);
+};
 
-export const useFieldStats = (entityId?: string) =>
-  useFieldStore((state) => {
-    const allFields = state.fields;
+export const useFieldStats = (entityId?: string) => {
+  const allFields = useFieldStore((state) => state.fields);
+
+  return useMemo(() => {
     const entityFields = entityId
       ? allFields.filter((f) => f.entityId === entityId)
       : allFields;
@@ -159,4 +176,5 @@ export const useFieldStats = (entityId?: string) =>
         return acc;
       }, {} as Record<string, number>),
     };
-  });
+  }, [allFields, entityId]);
+};

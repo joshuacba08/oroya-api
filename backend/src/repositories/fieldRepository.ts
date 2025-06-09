@@ -8,6 +8,10 @@ export interface Field {
   type: string;
   is_required: boolean;
   is_unique: boolean;
+  is_primary_key: boolean;
+  is_foreign_key: boolean;
+  foreign_entity_id?: string;
+  foreign_field_id?: string;
   default_value?: string;
   max_length?: number;
   description?: string;
@@ -24,6 +28,10 @@ export interface CreateFieldData {
   type: string;
   is_required?: boolean;
   is_unique?: boolean;
+  is_primary_key?: boolean;
+  is_foreign_key?: boolean;
+  foreign_entity_id?: string;
+  foreign_field_id?: string;
   default_value?: string;
   max_length?: number;
   description?: string;
@@ -37,6 +45,10 @@ export interface UpdateFieldData {
   type?: string;
   is_required?: boolean;
   is_unique?: boolean;
+  is_primary_key?: boolean;
+  is_foreign_key?: boolean;
+  foreign_entity_id?: string;
+  foreign_field_id?: string;
   default_value?: string;
   max_length?: number;
   description?: string;
@@ -58,11 +70,12 @@ export class FieldRepository {
       try {
         const query = `
           INSERT INTO fields (
-            id, entity_id, name, type, is_required, is_unique, 
+            id, entity_id, name, type, is_required, is_unique, is_primary_key, 
+            is_foreign_key, foreign_entity_id, foreign_field_id,
             default_value, max_length, description, accepts_multiple,
             max_file_size, allowed_extensions
           )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
 
         const db = this.getDb();
@@ -74,6 +87,10 @@ export class FieldRepository {
           data.type,
           data.is_required ? 1 : 0,
           data.is_unique ? 1 : 0,
+          data.is_primary_key ? 1 : 0,
+          data.is_foreign_key ? 1 : 0,
+          data.foreign_entity_id || null,
+          data.foreign_field_id || null,
           data.default_value || null,
           data.max_length || null,
           data.description || null,
@@ -176,6 +193,26 @@ export class FieldRepository {
         if (data.is_unique !== undefined) {
           fields.push("is_unique = ?");
           values.push(data.is_unique ? 1 : 0);
+        }
+
+        if (data.is_primary_key !== undefined) {
+          fields.push("is_primary_key = ?");
+          values.push(data.is_primary_key ? 1 : 0);
+        }
+
+        if (data.is_foreign_key !== undefined) {
+          fields.push("is_foreign_key = ?");
+          values.push(data.is_foreign_key ? 1 : 0);
+        }
+
+        if (data.foreign_entity_id !== undefined) {
+          fields.push("foreign_entity_id = ?");
+          values.push(data.foreign_entity_id);
+        }
+
+        if (data.foreign_field_id !== undefined) {
+          fields.push("foreign_field_id = ?");
+          values.push(data.foreign_field_id);
         }
 
         if (data.default_value !== undefined) {
@@ -318,6 +355,92 @@ export class FieldRepository {
         const result = stmt.get(...params);
 
         resolve(!!result);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  /**
+   * Obtener campos que son claves primarias de una entidad
+   */
+  findPrimaryKeysByEntityId(entityId: string): Promise<Field[]> {
+    return new Promise((resolve, reject) => {
+      try {
+        const query =
+          "SELECT * FROM fields WHERE entity_id = ? AND is_primary_key = 1 ORDER BY created_at ASC";
+        const db = this.getDb();
+        const stmt = db.prepare(query);
+        const fields = stmt.all(entityId) as Field[];
+
+        resolve(fields);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  /**
+   * Obtener campos que son claves foráneas de una entidad
+   */
+  findForeignKeysByEntityId(entityId: string): Promise<Field[]> {
+    return new Promise((resolve, reject) => {
+      try {
+        const query =
+          "SELECT * FROM fields WHERE entity_id = ? AND is_foreign_key = 1 ORDER BY created_at ASC";
+        const db = this.getDb();
+        const stmt = db.prepare(query);
+        const fields = stmt.all(entityId) as Field[];
+
+        resolve(fields);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  /**
+   * Obtener campos que referencian a una entidad específica
+   */
+  findFieldsReferencingEntity(entityId: string): Promise<Field[]> {
+    return new Promise((resolve, reject) => {
+      try {
+        const query =
+          "SELECT * FROM fields WHERE foreign_entity_id = ? ORDER BY created_at ASC";
+        const db = this.getDb();
+        const stmt = db.prepare(query);
+        const fields = stmt.all(entityId) as Field[];
+
+        resolve(fields);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  /**
+   * Obtener campos con información detallada de las entidades referenciadas
+   */
+  findWithForeignKeyDetails(entityId: string): Promise<any[]> {
+    return new Promise((resolve, reject) => {
+      try {
+        const query = `
+          SELECT 
+            f.*,
+            fe.name as foreign_entity_name,
+            ff.name as foreign_field_name
+          FROM fields f
+          LEFT JOIN entities fe ON f.foreign_entity_id = fe.id
+          LEFT JOIN fields ff ON f.foreign_field_id = ff.id
+          WHERE f.entity_id = ?
+          ORDER BY f.created_at ASC
+        `;
+
+        const db = this.getDb();
+        const stmt = db.prepare(query);
+        const fields = stmt.all(entityId);
+
+        resolve(fields);
       } catch (error) {
         reject(error);
       }

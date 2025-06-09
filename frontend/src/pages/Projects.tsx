@@ -1,14 +1,24 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import EditProject from "../components/forms/EditProject";
 import { Button } from "../components/ui/button";
 import { useProjectStore } from "../stores";
+import { Project } from "../stores/projectStore";
 
 const Projects: React.FC = () => {
   const navigate = useNavigate();
-  const { projects, loading, error, fetchProjects, createProject } =
-    useProjectStore();
+  const {
+    projects,
+    loading,
+    error,
+    fetchProjects,
+    createProject,
+    updateProjectRemote,
+    deleteProjectRemote,
+  } = useProjectStore();
 
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingProject, setEditingProject] = useState<string | null>(null);
   const [newProject, setNewProject] = useState({
     name: "",
     description: "",
@@ -35,6 +45,30 @@ const Projects: React.FC = () => {
       setShowCreateForm(false);
     } catch (error) {
       console.error("Error creating project:", error);
+    }
+  };
+
+  const handleEditProject = async (
+    projectId: string,
+    data: Partial<Project>
+  ) => {
+    try {
+      await updateProjectRemote(projectId, data);
+      setEditingProject(null);
+    } catch (error) {
+      console.error("Error updating project:", error);
+    }
+  };
+
+  const handleDeleteProject = async (projectId: string) => {
+    if (
+      window.confirm("¿Estás seguro de que quieres eliminar este proyecto?")
+    ) {
+      try {
+        await deleteProjectRemote(projectId);
+      } catch (error) {
+        console.error("Error deleting project:", error);
+      }
     }
   };
 
@@ -348,50 +382,103 @@ const Projects: React.FC = () => {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {projects.map((project) => (
-                <div
-                  key={project.id}
-                  onClick={() => handleProjectClick(project.id)}
-                  className="bg-card border border-border rounded-lg p-6 hover:bg-accent/50 transition-all duration-200 cursor-pointer group hover:shadow-lg hover:border-primary/50"
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
-                      <svg
-                        className="w-6 h-6 text-white"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-                        />
-                      </svg>
-                    </div>
-                    <svg
-                      className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 5l7 7-7 7"
+                <div key={project.id}>
+                  {editingProject === project.id ? (
+                    <div className="bg-card border border-border rounded-lg p-6">
+                      <h3 className="text-lg font-semibold text-foreground mb-4">
+                        Editar Proyecto
+                      </h3>
+                      <EditProject
+                        project={project}
+                        onSave={(data: Partial<Project>) =>
+                          handleEditProject(project.id, data)
+                        }
+                        onCancel={() => setEditingProject(null)}
+                        loading={loading}
                       />
-                    </svg>
-                  </div>
-                  <h3 className="text-lg font-semibold text-foreground mb-2 group-hover:text-primary transition-colors">
-                    {project.name}
-                  </h3>
-                  <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                    {project.description || "Sin descripción"}
-                  </p>
-                  <div className="text-xs text-muted-foreground">
-                    Creado: {new Date(project.createdAt).toLocaleDateString()}
-                  </div>
+                    </div>
+                  ) : (
+                    <div className="bg-card border border-border rounded-lg p-6 hover:bg-accent/50 transition-all duration-200 group hover:shadow-lg hover:border-primary/50">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
+                          <svg
+                            className="w-6 h-6 text-white"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                            />
+                          </svg>
+                        </div>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingProject(project.id);
+                            }}
+                            className="p-1 text-muted-foreground hover:text-primary transition-colors"
+                            title="Editar proyecto"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                              />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteProject(project.id);
+                            }}
+                            className="p-1 text-muted-foreground hover:text-red-500 transition-colors"
+                            title="Eliminar proyecto"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                      <div
+                        onClick={() => handleProjectClick(project.id)}
+                        className="cursor-pointer"
+                      >
+                        <h3 className="text-lg font-semibold text-foreground mb-2 group-hover:text-primary transition-colors">
+                          {project.name}
+                        </h3>
+                        <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                          {project.description || "Sin descripción"}
+                        </p>
+                        <div className="text-xs text-muted-foreground">
+                          Creado:{" "}
+                          {new Date(project.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

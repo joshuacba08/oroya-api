@@ -1,0 +1,190 @@
+{
+  "message": "Diagrama UML generado exitosamente",
+  "data": {
+    "nodes": [
+      {
+        "id": "user-entity-uuid",
+        "type": "entityNode",
+        "position": { "x": 0, "y": 0 },
+        "data": {
+          "label": "User",
+          "entity": {
+            "id": "user-entity-uuid",
+            "name": "User",
+            "description": "Entidad de usuarios del sistema"
+          },
+          "fields": [
+            {
+              "id": "user-id-field",
+              "name": "id",
+              "type": "string",
+              "is_required": true,
+              "is_unique": true,
+              "description": "Identificador único del usuario"
+            },
+            {
+              "id": "user-email-field",
+              "name": "email",
+              "type": "email",
+              "is_required": true,
+              "is_unique": true,
+              "description": "Correo electrónico del usuario"
+            },
+            {
+              "id": "user-name-field",
+              "name": "name",
+              "type": "string",
+              "is_required": true,
+              "is_unique": false,
+              "max_length": 100,
+              "description": "Nombre completo del usuario"
+            }
+          ]
+        }
+      },
+      {
+        "id": "post-entity-uuid",
+        "type": "entityNode",
+        "position": { "x": 350, "y": 0 },
+        "data": {
+          "label": "Post",
+          "entity": {
+            "id": "post-entity-uuid",
+            "name": "Post",
+            "description": "Entidad de publicaciones"
+          },
+          "fields": [
+            {
+              "id": "post-id-field",
+              "name": "id",
+              "type": "string",
+              "is_required": true,
+              "is_unique": true,
+              "description": "Identificador único del post"
+            },
+            {
+              "id": "post-title-field",
+              "name": "title",
+              "type": "string",
+              "is_required": true,
+              "is_unique": false,
+              "max_length": 200,
+              "description": "Título del post"
+            },
+            {
+              "id": "post-content-field",
+              "name": "content",
+              "type": "text",
+              "is_required": true,
+              "is_unique": false,
+              "description": "Contenido del post"
+            },
+            {
+              "id": "post-user-id-field",
+              "name": "user_id",
+              "type": "string",
+              "is_required": true,
+              "is_unique": false,
+              "description": "ID del usuario que creó el post"
+            }
+          ]
+        }
+      },
+      {
+        "id": "comment-entity-uuid",
+        "type": "entityNode",
+        "position": { "x": 700, "y": 0 },
+        "data": {
+          "label": "Comment",
+          "entity": {
+            "id": "comment-entity-uuid",
+            "name": "Comment",
+            "description": "Entidad de comentarios"
+          },
+          "fields": [
+            {
+              "id": "comment-id-field",
+              "name": "id",
+              "type": "string",
+              "is_required": true,
+              "is_unique": true,
+              "description": "Identificador único del comentario"
+            },
+            {
+              "id": "comment-content-field",
+              "name": "content",
+              "type": "text",
+              "is_required": true,
+              "is_unique": false,
+              "description": "Contenido del comentario"
+            },
+            {
+              "id": "comment-post-id-field",
+              "name": "post_id",
+              "type": "string",
+              "is_required": true,
+              "is_unique": false,
+              "description": "ID del post al que pertenece el comentario"
+            },
+            {
+              "id": "comment-user-id-field",
+              "name": "user_id",
+              "type": "string",
+              "is_required": true,
+              "is_unique": false,
+              "description": "ID del usuario que hizo el comentario"
+            }
+          ]
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "post-user-relationship",
+        "source": "post-entity-uuid",
+        "target": "user-entity-uuid",
+        "type": "smoothstep",
+        "label": "user_id",
+        "data": {
+          "relationship": "belongs_to",
+          "sourceCardinality": "many",
+          "targetCardinality": "one"
+        }
+      },
+      {
+        "id": "comment-post-relationship",
+        "source": "comment-entity-uuid",
+        "target": "post-entity-uuid",
+        "type": "smoothstep",
+        "label": "post_id",
+        "data": {
+          "relationship": "belongs_to",
+          "sourceCardinality": "many",
+          "targetCardinality": "one"
+        }
+      },
+      {
+        "id": "comment-user-relationship",
+        "source": "comment-entity-uuid",
+        "target": "user-entity-uuid",
+        "type": "smoothstep",
+        "label": "user_id",
+        "data": {
+          "relationship": "belongs_to",
+          "sourceCardinality": "many",
+          "targetCardinality": "one"
+        }
+      }
+    ],
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "zoom": 1
+    }
+  },
+  "project": {
+    "id": "project-uuid",
+    "name": "Blog API",
+    "description": "API para un sistema de blog con usuarios, posts y comentarios"
+  }
+}

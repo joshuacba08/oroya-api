@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Test Socket.io Connection</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  </head>
+  <body>
+    <h1>Test Socket.io Connection</h1>
+    <div id="status">Conectando...</div>
+    <div id="logs"></div>
+
+    <script>
+      const statusDiv = document.getElementById("status");
+      const logsDiv = document.getElementById("logs");
+
+      function addLog(message) {
+        const logEntry = document.createElement("div");
+        logEntry.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+        logsDiv.appendChild(logEntry);
+      }
+
+      // Conectar a Socket.io
+      const socket = io("http://localhost:8080", {
+        transports: ["polling", "websocket"],
+        cors: {
+          origin: "http://localhost:5173",
+          methods: ["GET", "POST"],
+        },
+      });
+
+      socket.on("connect", () => {
+        statusDiv.textContent = "✅ Conectado exitosamente!";
+        statusDiv.style.color = "green";
+        addLog("Conectado al servidor Socket.io");
+        addLog(`Socket ID: ${socket.id}`);
+      });
+
+      socket.on("disconnect", () => {
+        statusDiv.textContent = "❌ Desconectado";
+        statusDiv.style.color = "red";
+        addLog("Desconectado del servidor");
+      });
+
+      socket.on("connect_error", (error) => {
+        statusDiv.textContent = "❌ Error de conexión";
+        statusDiv.style.color = "red";
+        addLog(`Error de conexión: ${error.message}`);
+        console.error("Socket.io connection error:", error);
+      });
+
+      // Test de logs en tiempo real
+      socket.on("new-log", (logData) => {
+        addLog(`Nuevo log recibido: ${logData.method} ${logData.url}`);
+      });
+
+      // Unirse a la sala de logs
+      setTimeout(() => {
+        if (socket.connected) {
+          socket.emit("join-logs", { level: "info" });
+          addLog("Unido a la sala de logs");
+        }
+      }, 1000);
+    </script>
+  </body>
+</html>

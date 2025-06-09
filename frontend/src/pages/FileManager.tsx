@@ -1,7 +1,9 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import EditFile from "../components/forms/EditFile";
+import { FileActionGroup, UploadButton } from "../components/ui/action-buttons";
 import { Button } from "../components/ui/button";
-import { FileItem } from "../services/api";
+import { FileItem, apiService } from "../services/api";
 import {
   FileManagerState,
   useFileManagerStore,
@@ -10,6 +12,7 @@ import {
 export const FileManager: React.FC = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [editingFile, setEditingFile] = useState<string | null>(null);
   const {
     // State
     selectedFiles,
@@ -153,6 +156,20 @@ export const FileManager: React.FC = () => {
     navigate("/login");
   };
 
+  const handleEditFile = async (
+    fileId: string,
+    data: { original_name: string }
+  ) => {
+    try {
+      await apiService.updateFile(fileId, data);
+      setEditingFile(null);
+      // Refresh the files list
+      fetchFiles();
+    } catch (error) {
+      console.error("Error updating file:", error);
+    }
+  };
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(true);
@@ -213,7 +230,7 @@ export const FileManager: React.FC = () => {
       return (
         <div
           key={file.id}
-          className={`relative bg-card border border-border rounded-lg transition-all duration-200 cursor-pointer hover:shadow-lg hover:shadow-purple-500/20 ${
+          className={`group relative bg-card border border-border rounded-lg transition-all duration-200 cursor-pointer hover:shadow-lg hover:shadow-purple-500/20 ${
             isSelected ? "border-primary bg-primary/10" : "hover:border-border"
           }`}
           onClick={() => toggleFileSelection(file.id)}
@@ -265,17 +282,20 @@ export const FileManager: React.FC = () => {
             </div>
           )}
 
-          <div className="absolute top-2 left-2 opacity-0 hover:opacity-100 transition-opacity">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                downloadFile(file.id);
-              }}
-              className="bg-card border border-border text-foreground p-1 rounded text-xs hover:bg-accent"
-            >
-              ⬇
-            </button>
-          </div>
+          <FileActionGroup
+            onDownload={(e) => {
+              e.stopPropagation();
+              downloadFile(file.id);
+            }}
+            onEdit={(e) => {
+              e.stopPropagation();
+              setEditingFile(file.id);
+            }}
+            onDelete={(e) => {
+              e.stopPropagation();
+              deleteFile(file.id);
+            }}
+          />
         </div>
       );
     } else {
@@ -322,6 +342,15 @@ export const FileManager: React.FC = () => {
               className="text-primary hover:text-primary/80 mr-3 transition-colors"
             >
               Descargar
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditingFile(file.id);
+              }}
+              className="text-blue-400 hover:text-blue-300 mr-3 transition-colors"
+            >
+              Editar
             </button>
             <button
               onClick={(e) => {
@@ -465,25 +494,7 @@ export const FileManager: React.FC = () => {
 
                 {/* Actions */}
                 <div className="flex items-center gap-3">
-                  <Button
-                    onClick={() => setShowUploadModal(true)}
-                    className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg"
-                  >
-                    <svg
-                      className="w-4 h-4 mr-2"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                      />
-                    </svg>
-                    Subir Archivos
-                  </Button>
+                  <UploadButton onClick={() => setShowUploadModal(true)} />
 
                   {selectedFiles.size > 0 && (
                     <Button
@@ -704,6 +715,20 @@ export const FileManager: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* File Editing */}
+          {editingFile && (
+            <div className="bg-card border border-border rounded-lg p-6 mt-6">
+              <h3 className="text-lg font-semibold text-foreground mb-4">
+                Editar Archivo
+              </h3>
+              <EditFile
+                file={filteredFiles.find((f) => f.id === editingFile)!}
+                onSave={(data) => handleEditFile(editingFile, data)}
+                onCancel={() => setEditingFile(null)}
+              />
+            </div>
+          )}
 
           {/* Upload Modal */}
           {showUploadModal && (

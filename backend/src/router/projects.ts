@@ -157,6 +157,283 @@ router.get(
   }
 );
 
+/**
+ * @swagger
+ * /api/projects/{projectId}:
+ *   put:
+ *     summary: Actualizar un proyecto completo
+ *     tags: [Projects]
+ *     parameters:
+ *       - in: path
+ *         name: projectId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID del proyecto
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: Nombre del proyecto
+ *                 example: "Mi Proyecto Actualizado"
+ *               description:
+ *                 type: string
+ *                 description: Descripción del proyecto
+ *                 example: "Descripción actualizada del proyecto"
+ *     responses:
+ *       200:
+ *         description: Proyecto actualizado exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Project'
+ *       400:
+ *         description: Error en los datos enviados
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Proyecto no encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.put(
+  "/:projectId",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { projectId } = req.params;
+      const { name, description } = req.body;
+
+      if (!name) {
+        res.status(400).json({
+          error: "Bad Request",
+          message: "El nombre del proyecto es requerido",
+        });
+        return;
+      }
+
+      // Verificar que el proyecto existe
+      const projectExists = await projectRepository.exists(projectId);
+      if (!projectExists) {
+        res.status(404).json({
+          error: "Not Found",
+          message: "Proyecto no encontrado",
+        });
+        return;
+      }
+
+      // Actualizar proyecto en base de datos
+      const updatedProject = await projectRepository.update(projectId, {
+        name,
+        description: description || undefined,
+      });
+
+      if (!updatedProject) {
+        res.status(404).json({
+          error: "Not Found",
+          message: "Proyecto no encontrado",
+        });
+        return;
+      }
+
+      res.json(updatedProject);
+    } catch (error) {
+      console.error("Error updating project:", error);
+      res.status(500).json({
+        error: "Internal Server Error",
+        message: "Error interno del servidor",
+      });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/projects/{projectId}:
+ *   patch:
+ *     summary: Actualizar parcialmente un proyecto
+ *     tags: [Projects]
+ *     parameters:
+ *       - in: path
+ *         name: projectId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID del proyecto
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: Nombre del proyecto
+ *                 example: "Mi Proyecto Actualizado"
+ *               description:
+ *                 type: string
+ *                 description: Descripción del proyecto
+ *                 example: "Descripción actualizada del proyecto"
+ *     responses:
+ *       200:
+ *         description: Proyecto actualizado exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Project'
+ *       400:
+ *         description: Error en los datos enviados
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Proyecto no encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.patch(
+  "/:projectId",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { projectId } = req.params;
+      const { name, description } = req.body;
+
+      // Verificar que al menos un campo está presente
+      if (name === undefined && description === undefined) {
+        res.status(400).json({
+          error: "Bad Request",
+          message: "Debe proporcionar al menos un campo para actualizar",
+        });
+        return;
+      }
+
+      // Verificar que el proyecto existe
+      const projectExists = await projectRepository.exists(projectId);
+      if (!projectExists) {
+        res.status(404).json({
+          error: "Not Found",
+          message: "Proyecto no encontrado",
+        });
+        return;
+      }
+
+      // Actualizar proyecto en base de datos
+      const updatedProject = await projectRepository.update(projectId, {
+        name: name !== undefined ? name : undefined,
+        description: description !== undefined ? description : undefined,
+      });
+
+      if (!updatedProject) {
+        res.status(404).json({
+          error: "Not Found",
+          message: "Proyecto no encontrado",
+        });
+        return;
+      }
+
+      res.json(updatedProject);
+    } catch (error) {
+      console.error("Error updating project:", error);
+      res.status(500).json({
+        error: "Internal Server Error",
+        message: "Error interno del servidor",
+      });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/projects/{projectId}:
+ *   delete:
+ *     summary: Eliminar un proyecto
+ *     tags: [Projects]
+ *     parameters:
+ *       - in: path
+ *         name: projectId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID del proyecto
+ *     responses:
+ *       200:
+ *         description: Proyecto eliminado exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Proyecto eliminado exitosamente"
+ *       404:
+ *         description: Proyecto no encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.delete(
+  "/:projectId",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { projectId } = req.params;
+
+      // Verificar que el proyecto existe
+      const projectExists = await projectRepository.exists(projectId);
+      if (!projectExists) {
+        res.status(404).json({
+          error: "Not Found",
+          message: "Proyecto no encontrado",
+        });
+        return;
+      }
+
+      // Eliminar proyecto de la base de datos
+      const deleted = await projectRepository.delete(projectId);
+
+      if (!deleted) {
+        res.status(404).json({
+          error: "Not Found",
+          message: "Proyecto no encontrado",
+        });
+        return;
+      }
+
+      res.json({
+        success: true,
+        message: "Proyecto eliminado exitosamente",
+      });
+    } catch (error) {
+      console.error("Error deleting project:", error);
+      res.status(500).json({
+        error: "Internal Server Error",
+        message: "Error interno del servidor",
+      });
+    }
+  }
+);
+
 // UUID generation is now handled by the imported utility
 
 export default router;

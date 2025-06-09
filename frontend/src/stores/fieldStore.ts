@@ -3,7 +3,17 @@ import { persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 import { apiService } from "../services/api";
 
-export type FieldType = "string" | "number" | "boolean" | "date";
+export type FieldType =
+  | "string"
+  | "number"
+  | "boolean"
+  | "date"
+  | "text"
+  | "integer"
+  | "decimal"
+  | "file"
+  | "image"
+  | "document";
 
 export interface Field {
   id: string;
@@ -11,6 +21,15 @@ export interface Field {
   name: string;
   type: FieldType;
   required: boolean;
+  isUnique?: boolean;
+  defaultValue?: string | null;
+  maxLength?: number | null;
+  description?: string | null;
+  acceptsMultiple?: boolean;
+  maxFileSize?: number | null;
+  allowedExtensions?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface FieldState {
@@ -38,7 +57,7 @@ interface FieldActions {
   fetchFieldsByEntityId: (projectId: string, entityId: string) => Promise<void>;
   createField: (
     projectId: string,
-    fieldData: Omit<Field, "id">
+    fieldData: Omit<Field, "id" | "createdAt" | "updatedAt">
   ) => Promise<void>;
   updateFieldRemote: (
     projectId: string,

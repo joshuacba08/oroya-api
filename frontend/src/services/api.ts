@@ -143,6 +143,11 @@ class ApiService {
     return response.data;
   }
 
+  private async patch<T>(url: string, data?: unknown): Promise<T> {
+    const response: AxiosResponse<T> = await this.client.patch(url, data);
+    return response.data;
+  }
+
   // Project API methods
   async getProjects(): Promise<Project[]> {
     return this.get<Project[]>("/projects");
@@ -156,6 +161,10 @@ class ApiService {
 
   async updateProject(id: string, data: Partial<Project>): Promise<Project> {
     return this.put<Project>(`/projects/${id}`, data);
+  }
+
+  async patchProject(id: string, data: Partial<Project>): Promise<Project> {
+    return this.patch<Project>(`/projects/${id}`, data);
   }
 
   async deleteProject(id: string): Promise<void> {
@@ -196,6 +205,10 @@ class ApiService {
     return this.put<Entity>(`/projects/${projectId}/entities/${id}`, data);
   }
 
+  async patchEntity(id: string, data: Partial<Entity>): Promise<Entity> {
+    return this.patch<Entity>(`/entities/${id}`, data);
+  }
+
   async deleteEntity(projectId: string, id: string): Promise<void> {
     return this.delete<void>(`/projects/${projectId}/entities/${id}`);
   }
@@ -224,6 +237,15 @@ class ApiService {
       name: field.name,
       type: field.type as FieldType,
       required: Boolean(field.is_required), // Convert 0/1 to boolean
+      isUnique: Boolean(field.is_unique),
+      defaultValue: field.default_value,
+      maxLength: field.max_length,
+      description: field.description,
+      acceptsMultiple: Boolean(field.accepts_multiple),
+      maxFileSize: field.max_file_size,
+      allowedExtensions: field.allowed_extensions,
+      createdAt: field.created_at,
+      updatedAt: field.updated_at,
     }));
 
     console.log("🔄 API Service - Transformed fields:", transformedFields);
@@ -232,7 +254,7 @@ class ApiService {
 
   async createField(
     projectId: string,
-    data: Omit<Field, "id">
+    data: Omit<Field, "id" | "createdAt" | "updatedAt">
   ): Promise<Field> {
     const url = `/projects/${projectId}/entities/${data.entityId}/fields`;
     console.log(
@@ -246,6 +268,13 @@ class ApiService {
       name: data.name,
       type: data.type,
       is_required: data.required ? 1 : 0, // Convert boolean to 0/1
+      is_unique: data.isUnique ? 1 : 0,
+      default_value: data.defaultValue || null,
+      max_length: data.maxLength || null,
+      description: data.description || null,
+      accepts_multiple: data.acceptsMultiple ? 1 : 0,
+      max_file_size: data.maxFileSize || null,
+      allowed_extensions: data.allowedExtensions || null,
     };
 
     const response = await this.post<ApiField>(url, requestData);
@@ -258,6 +287,15 @@ class ApiService {
       name: response.name,
       type: response.type as FieldType,
       required: Boolean(response.is_required),
+      isUnique: Boolean(response.is_unique),
+      defaultValue: response.default_value,
+      maxLength: response.max_length,
+      description: response.description,
+      acceptsMultiple: Boolean(response.accepts_multiple),
+      maxFileSize: response.max_file_size,
+      allowedExtensions: response.allowed_extensions,
+      createdAt: response.created_at,
+      updatedAt: response.updated_at,
     };
 
     console.log(
@@ -273,10 +311,54 @@ class ApiService {
     id: string,
     data: Partial<Field>
   ): Promise<Field> {
-    return this.put<Field>(
+    // Transform camelCase to snake_case for the request
+    const requestData: Partial<
+      Omit<ApiField, "id" | "entity_id" | "created_at" | "updated_at">
+    > = {};
+    if (data.name !== undefined) requestData.name = data.name;
+    if (data.type !== undefined) requestData.type = data.type;
+    if (data.required !== undefined)
+      requestData.is_required = data.required ? 1 : 0;
+    if (data.isUnique !== undefined)
+      requestData.is_unique = data.isUnique ? 1 : 0;
+    if (data.defaultValue !== undefined)
+      requestData.default_value = data.defaultValue;
+    if (data.maxLength !== undefined) requestData.max_length = data.maxLength;
+    if (data.description !== undefined)
+      requestData.description = data.description;
+    if (data.acceptsMultiple !== undefined)
+      requestData.accepts_multiple = data.acceptsMultiple ? 1 : 0;
+    if (data.maxFileSize !== undefined)
+      requestData.max_file_size = data.maxFileSize;
+    if (data.allowedExtensions !== undefined)
+      requestData.allowed_extensions = data.allowedExtensions;
+
+    const response = await this.put<ApiField>(
       `/projects/${projectId}/entities/${entityId}/fields/${id}`,
-      data
+      requestData
     );
+
+    // Transform snake_case response back to camelCase
+    return {
+      id: response.id,
+      entityId: response.entity_id,
+      name: response.name,
+      type: response.type as FieldType,
+      required: Boolean(response.is_required),
+      isUnique: Boolean(response.is_unique),
+      defaultValue: response.default_value,
+      maxLength: response.max_length,
+      description: response.description,
+      acceptsMultiple: Boolean(response.accepts_multiple),
+      maxFileSize: response.max_file_size,
+      allowedExtensions: response.allowed_extensions,
+      createdAt: response.created_at,
+      updatedAt: response.updated_at,
+    };
+  }
+
+  async patchField(id: string, data: Partial<Field>): Promise<Field> {
+    return this.patch<Field>(`/fields/${id}`, data);
   }
 
   async deleteField(
@@ -401,6 +483,14 @@ class ApiService {
 
   async logout(): Promise<void> {
     return this.post<void>("/auth/logout");
+  }
+
+  // Update file name
+  async updateFile(
+    fileId: string,
+    data: { original_name: string }
+  ): Promise<FileItem> {
+    return this.put<FileItem>(`/files/${fileId}`, data);
   }
 }
 

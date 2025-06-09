@@ -135,6 +135,10 @@ router.post(
         type,
         is_required,
         is_unique,
+        is_primary_key,
+        is_foreign_key,
+        foreign_entity_id,
+        foreign_field_id,
         default_value,
         max_length,
         description,
@@ -224,6 +228,47 @@ router.post(
         }
       }
 
+      // Validaciones para claves foráneas
+      if (is_foreign_key && foreign_entity_id) {
+        const foreignEntityExists = await entityRepository.exists(
+          foreign_entity_id
+        );
+        if (!foreignEntityExists) {
+          res.status(404).json({
+            error: "Not Found",
+            message: "Entidad referenciada no encontrada",
+          });
+          return;
+        }
+
+        if (foreign_field_id) {
+          const foreignFieldExists = await fieldRepository.exists(
+            foreign_field_id
+          );
+          if (!foreignFieldExists) {
+            res.status(404).json({
+              error: "Not Found",
+              message: "Campo referenciado no encontrado",
+            });
+            return;
+          }
+
+          // Verificar que el campo pertenece a la entidad referenciada
+          const fieldBelongsToEntity = await fieldRepository.belongsToEntity(
+            foreign_field_id,
+            foreign_entity_id
+          );
+          if (!fieldBelongsToEntity) {
+            res.status(400).json({
+              error: "Bad Request",
+              message:
+                "El campo referenciado no pertenece a la entidad referenciada",
+            });
+            return;
+          }
+        }
+      }
+
       // Crear campo en base de datos
       const fieldId = generateUUID();
       const field = await fieldRepository.create(fieldId, {
@@ -232,6 +277,10 @@ router.post(
         type,
         is_required: is_required || false,
         is_unique: is_unique || false,
+        is_primary_key: is_primary_key || false,
+        is_foreign_key: is_foreign_key || false,
+        foreign_entity_id: foreign_entity_id || undefined,
+        foreign_field_id: foreign_field_id || undefined,
         default_value: default_value || undefined,
         max_length: max_length || undefined,
         description: description || undefined,
