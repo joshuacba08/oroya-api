@@ -54,10 +54,10 @@ const Fields: React.FC = () => {
 
   const handleCreateField = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!entityId) return;
+    if (!projectId || !entityId) return;
 
     try {
-      await createField({
+      await createField(projectId, {
         entityId: entityId,
         name: newField.name,
         type: newField.type,
@@ -99,7 +99,7 @@ const Fields: React.FC = () => {
     }
 
     // Fetch fields for this entity
-    fetchFieldsByEntityId(entityId);
+    fetchFieldsByEntityId(projectId, entityId);
   }, [
     projectId,
     entityId,

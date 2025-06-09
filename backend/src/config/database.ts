@@ -1,8 +1,78 @@
+import fs from "fs";
 import { DatabaseSync } from "node:sqlite";
+import os from "os";
 import path from "path";
 
+/**
+ * Obtiene el directorio de datos de usuario apropiado para cada OS
+ */
+const getUserDataPath = (): string => {
+  const platform = os.platform();
+  const appName = "OroyaAPI";
+
+  switch (platform) {
+    case "win32":
+      // Windows: %APPDATA%/OroyaAPI
+      return path.join(os.homedir(), "AppData", "Roaming", appName);
+    case "darwin":
+      // macOS: ~/Library/Application Support/OroyaAPI
+      return path.join(os.homedir(), "Library", "Application Support", appName);
+    case "linux":
+      // Linux: ~/.config/OroyaAPI
+      return path.join(os.homedir(), ".config", appName);
+    default:
+      // Fallback: ~/.OroyaAPI
+      return path.join(os.homedir(), `.${appName}`);
+  }
+};
+
+/**
+ * Asegura que el directorio de datos de usuario existe
+ */
+const ensureUserDataDirectory = (): string => {
+  const userDataPath = getUserDataPath();
+
+  try {
+    if (!fs.existsSync(userDataPath)) {
+      fs.mkdirSync(userDataPath, { recursive: true });
+      console.log(`Created user data directory: ${userDataPath}`);
+    }
+
+    // Verificar permisos de escritura
+    fs.accessSync(userDataPath, fs.constants.W_OK);
+    return userDataPath;
+  } catch (error) {
+    console.error(
+      `Error accessing user data directory: ${userDataPath}`,
+      error
+    );
+
+    // Fallback a directorio temporal
+    const tempPath = path.join(os.tmpdir(), "OroyaAPI");
+    if (!fs.existsSync(tempPath)) {
+      fs.mkdirSync(tempPath, { recursive: true });
+    }
+    console.warn(`Using temporary directory as fallback: ${tempPath}`);
+    return tempPath;
+  }
+};
+
+/**
+ * Obtiene la ruta de la base de datos
+ */
+const getDatabasePath = (): string => {
+  // En modo desarrollo, usar la ruta relativa actual
+  if (process.env.NODE_ENV === "development") {
+    return path.join(__dirname, "../../database.sqlite");
+  }
+
+  // En producción/Electron, usar directorio de datos de usuario
+  const userDataPath = ensureUserDataDirectory();
+  return path.join(userDataPath, "database.sqlite");
+};
+
 // Configuración de la base de datos
-const DB_PATH = path.join(__dirname, "../../database.sqlite");
+const DB_PATH = getDatabasePath();
 
 // Instancia de la base de datos
 let db: DatabaseSync | null = null;
@@ -18,12 +88,25 @@ export const initDatabase = (): Promise<DatabaseSync> => {
         return;
       }
 
+      console.log(`Initializing database at: ${DB_PATH}`);
+
+      // Asegurar que el directorio padre existe
+      const dbDir = path.dirname(DB_PATH);
+      if (!fs.existsSync(dbDir)) {
+        fs.mkdirSync(dbDir, { recursive: true });
+      }
+
       db = new DatabaseSync(DB_PATH);
       console.log("Conectado a SQLite database.");
 
-      // Habilitar foreign keys
+      // Configurar SQLite para mejor rendimiento y concurrencia
+      db.exec("PRAGMA journal_mode = WAL");
+      db.exec("PRAGMA synchronous = NORMAL");
+      db.exec("PRAGMA cache_size = 1000");
       db.exec("PRAGMA foreign_keys = ON");
-      console.log("Foreign keys habilitadas.");
+      db.exec("PRAGMA temp_store = MEMORY");
+
+      console.log("SQLite configurado correctamente.");
 
       resolve(db);
     } catch (err) {
@@ -63,6 +146,21 @@ export const closeDatabase = (): Promise<void> => {
       resolve(); // No rechazamos para permitir el cierre limpio
     }
   });
+};
+
+/**
+ * Obtiene información sobre la configuración de la base de datos
+ */
+export const getDatabaseInfo = () => {
+  return {
+    path: DB_PATH,
+    platform: os.platform(),
+    userDataPath:
+      process.env.NODE_ENV === "development"
+        ? "N/A (development mode)"
+        : getUserDataPath(),
+    isDevelopment: process.env.NODE_ENV === "development",
+  };
 };
 
 /**

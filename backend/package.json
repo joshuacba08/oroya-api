@@ -6,7 +6,12 @@
   "scripts": {
     "start": "node dist/index.js",
     "dev": "ts-node-dev index.ts",
-    "build": "tsc"
+    "build": "tsc",
+    "db:info": "node scripts/database-utils.js info",
+    "db:setup": "node scripts/database-utils.js setup",
+    "db:migrate": "node scripts/database-utils.js migrate",
+    "db:backup": "node scripts/database-utils.js backup",
+    "db:clean": "node scripts/database-utils.js clean"
   },
   "keywords": [],
   "author": "",

@@ -1,2 +1,7 @@
 /node_modules
 /dist
+/database.sqlite
+/storage/compressed/*
+/storage/uploads/*
+/storage/thumbnails/*
+database.sqlite

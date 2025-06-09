@@ -35,8 +35,11 @@ interface FieldActions {
   setError: (error: string | null) => void;
 
   // API actions
-  fetchFieldsByEntityId: (entityId: string) => Promise<void>;
-  createField: (fieldData: Omit<Field, "id">) => Promise<void>;
+  fetchFieldsByEntityId: (projectId: string, entityId: string) => Promise<void>;
+  createField: (
+    projectId: string,
+    fieldData: Omit<Field, "id">
+  ) => Promise<void>;
   updateFieldRemote: (
     projectId: string,
     entityId: string,
@@ -118,19 +121,36 @@ export const useFieldStore = create<FieldStore>()(
         }),
 
       // API integration
-      fetchFieldsByEntityId: async (entityId) => {
+      fetchFieldsByEntityId: async (projectId, entityId) => {
+        console.log(
+          "🔍 Fetching fields for entity:",
+          entityId,
+          "in project:",
+          projectId
+        );
         set((state) => {
           state.loading = true;
           state.error = null;
         });
 
         try {
-          // Note: We need projectId for the API call, but it's not available here
-          // This is a limitation that would need to be addressed in a real app
-          // For now, we'll use mock data with a fallback approach
-          throw new Error("API integration needs projectId");
+          const fields = await apiService.getFieldsByEntityId(
+            projectId,
+            entityId
+          );
+          console.log("✅ Fields API Response received:", fields);
+
+          set((state) => {
+            // Replace fields for this entity
+            state.fields = [
+              ...state.fields.filter((f) => f.entityId !== entityId),
+              ...fields,
+            ];
+            state.loading = false;
+            console.log("🏪 Store updated with fields:", state.fields);
+          });
         } catch (error) {
-          console.error("Failed to fetch fields:", error);
+          console.error("❌ Failed to fetch fields:", error);
 
           // Fallback to mock data
           const mockFields: Field[] = [
@@ -183,17 +203,28 @@ export const useFieldStore = create<FieldStore>()(
         }
       },
 
-      createField: async (fieldData) => {
+      createField: async (projectId, fieldData) => {
+        console.log(
+          "🔍 Creating field in project:",
+          projectId,
+          "data:",
+          fieldData
+        );
         set((state) => {
           state.loading = true;
           state.error = null;
         });
 
         try {
-          // Note: This also needs projectId for the API call
-          throw new Error("API integration needs projectId");
+          const newField = await apiService.createField(projectId, fieldData);
+          console.log("✅ Field created:", newField);
+
+          set((state) => {
+            state.fields.push(newField);
+            state.loading = false;
+          });
         } catch (error) {
-          console.error("Failed to create field:", error);
+          console.error("❌ Failed to create field:", error);
 
           // Fallback to local creation
           const newField: Field = {

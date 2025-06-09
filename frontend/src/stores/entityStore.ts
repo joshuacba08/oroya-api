@@ -126,6 +126,7 @@ export const useEntityStore = create<EntityStore>()(
 
       // API integration
       fetchEntitiesByProjectId: async (projectId) => {
+        console.log("🔍 Fetching entities for project:", projectId);
         set((state) => {
           state.loading = true;
           state.error = null;
@@ -133,6 +134,8 @@ export const useEntityStore = create<EntityStore>()(
 
         try {
           const entities = await apiService.getEntitiesByProjectId(projectId);
+          console.log("✅ API Response received:", entities);
+          console.log("📊 Number of entities:", entities.length);
 
           set((state) => {
             // Replace entities for this project
@@ -141,9 +144,10 @@ export const useEntityStore = create<EntityStore>()(
               ...entities,
             ];
             state.loading = false;
+            console.log("🏪 Store updated with entities:", state.entities);
           });
         } catch (error) {
-          console.error("Failed to fetch entities:", error);
+          console.error("❌ Failed to fetch entities:", error);
 
           // Fallback to mock data
           const mockEntities: Entity[] = [

@@ -80,6 +80,11 @@ const Home: React.FC = () => {
   // Get entities for current project
   const projectEntities = projectId ? getEntitiesByProjectId(projectId) : [];
 
+  // Debug logging
+  console.log("🏠 Home - Current projectId:", projectId);
+  console.log("🏠 Home - Project entities:", projectEntities);
+  console.log("🏠 Home - Loading state:", loading);
+
   const menuItems = [
     {
       name: "Proyectos",

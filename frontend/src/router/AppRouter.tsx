@@ -1,6 +1,14 @@
 import React from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import { Fields, Home, Login, NotFound, Onboarding, Projects } from "../pages";
+import {
+  Fields,
+  FileManager,
+  Home,
+  Login,
+  NotFound,
+  Onboarding,
+  Projects,
+} from "../pages";
 
 const AppRouter: React.FC = () => {
   return (
@@ -14,6 +22,7 @@ const AppRouter: React.FC = () => {
           path="/projects/:projectId/entities/:entityId/fields"
           element={<Fields />}
         />
+        <Route path="/files" element={<FileManager />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>

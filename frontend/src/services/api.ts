@@ -1,6 +1,6 @@
 import axios, { AxiosInstance, AxiosResponse } from "axios";
 import { Entity } from "../stores/entityStore";
-import { Field } from "../stores/fieldStore";
+import { Field, type FieldType } from "../stores/fieldStore";
 import { Project } from "../stores/projectStore";
 
 // Types for API responses
@@ -23,9 +23,69 @@ interface RegisterData {
   name: string;
 }
 
+// File Management Types
+export interface FileItem {
+  id: string;
+  original_name: string;
+  filename: string;
+  mimetype: string;
+  size: number;
+  path: string;
+  is_image: boolean;
+  width?: number;
+  height?: number;
+  compressed_path?: string;
+  thumbnail_path?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface FileUploadResponse {
+  success: boolean;
+  message: string;
+  files: FileItem[];
+}
+
+export interface FileBase64Response {
+  success: boolean;
+  base64: string;
+  mimetype: string;
+  originalName: string;
+  size: number;
+}
+
+export interface FileUploadBase64Data {
+  base64Data: string;
+  originalName: string;
+  mimetype: string;
+  fieldId?: string;
+  recordId?: string;
+}
+
+export interface StorageStats {
+  uploads: { count: number; totalSize: number };
+  thumbnails: { count: number; totalSize: number };
+  compressed: { count: number; totalSize: number };
+}
+
+export interface StorageStatsResponse {
+  success: boolean;
+  stats: StorageStats;
+}
+
+export type FileVariant = "original" | "thumbnail" | "compressed";
+
+export interface FileListResponse {
+  success: boolean;
+  files: FileItem[];
+  total: number;
+}
+
 // Base API configuration
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || "http://localhost:8080/api";
+
+console.log("🔧 API Configuration - Base URL:", API_BASE_URL);
 
 class ApiService {
   private client: AxiosInstance;
@@ -108,7 +168,21 @@ class ApiService {
 
   // Entity API methods
   async getEntitiesByProjectId(projectId: string): Promise<Entity[]> {
-    return this.get<Entity[]>(`/projects/${projectId}/entities`);
+    const url = `/projects/${projectId}/entities`;
+    console.log("🌐 API Service - Making request to:", `${API_BASE_URL}${url}`);
+    const response = await this.get<ApiEntity[]>(url);
+    console.log("📡 API Service - Raw response:", response);
+    // Transform snake_case to camelCase
+    const transformedEntities = response.map((entity: ApiEntity) => ({
+      id: entity.id,
+      projectId: entity.project_id,
+      name: entity.name,
+      description: entity.description,
+      createdAt: entity.created_at,
+      updatedAt: entity.updated_at,
+    }));
+    console.log("🔄 API Service - Transformed entities:", transformedEntities);
+    return transformedEntities;
   }
 
   async createEntity(
@@ -135,19 +209,62 @@ class ApiService {
     projectId: string,
     entityId: string
   ): Promise<Field[]> {
-    return this.get<Field[]>(
-      `/projects/${projectId}/entities/${entityId}/fields`
+    const url = `/projects/${projectId}/entities/${entityId}/fields`;
+    console.log(
+      "🌐 API Service - Making fields request to:",
+      `${API_BASE_URL}${url}`
     );
+    const response = await this.get<ApiField[]>(url);
+    console.log("📡 API Service - Raw fields response:", response);
+
+    // Transform snake_case to camelCase and convert integers to booleans
+    const transformedFields = response.map((field: ApiField) => ({
+      id: field.id,
+      entityId: field.entity_id,
+      name: field.name,
+      type: field.type as FieldType,
+      required: Boolean(field.is_required), // Convert 0/1 to boolean
+    }));
+
+    console.log("🔄 API Service - Transformed fields:", transformedFields);
+    return transformedFields;
   }
 
   async createField(
     projectId: string,
     data: Omit<Field, "id">
   ): Promise<Field> {
-    return this.post<Field>(
-      `/projects/${projectId}/entities/${data.entityId}/fields`,
+    const url = `/projects/${projectId}/entities/${data.entityId}/fields`;
+    console.log(
+      "🌐 API Service - Creating field:",
+      `${API_BASE_URL}${url}`,
       data
     );
+
+    // Transform camelCase to snake_case for the request
+    const requestData = {
+      name: data.name,
+      type: data.type,
+      is_required: data.required ? 1 : 0, // Convert boolean to 0/1
+    };
+
+    const response = await this.post<ApiField>(url, requestData);
+    console.log("📡 API Service - Raw field creation response:", response);
+
+    // Transform snake_case response back to camelCase
+    const transformedField = {
+      id: response.id,
+      entityId: response.entity_id,
+      name: response.name,
+      type: response.type as FieldType,
+      required: Boolean(response.is_required),
+    };
+
+    console.log(
+      "🔄 API Service - Transformed created field:",
+      transformedField
+    );
+    return transformedField;
   }
 
   async updateField(
@@ -172,6 +289,104 @@ class ApiService {
     );
   }
 
+  // File Management API methods
+
+  // Upload general files
+  async uploadFiles(files: FileList | File[]): Promise<FileUploadResponse> {
+    const formData = new FormData();
+    Array.from(files).forEach((file) => {
+      formData.append("files", file);
+    });
+
+    const response: AxiosResponse<FileUploadResponse> = await this.client.post(
+      "/files/upload",
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+    return response.data;
+  }
+
+  // Upload images specifically
+  async uploadImages(images: FileList | File[]): Promise<FileUploadResponse> {
+    const formData = new FormData();
+    Array.from(images).forEach((image) => {
+      formData.append("images", image);
+    });
+
+    const response: AxiosResponse<FileUploadResponse> = await this.client.post(
+      "/files/upload/images",
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+    return response.data;
+  }
+
+  // Upload from base64
+  async uploadFromBase64(
+    data: FileUploadBase64Data
+  ): Promise<FileUploadResponse> {
+    return this.post<FileUploadResponse>("/files/upload/base64", data);
+  }
+
+  // Get all files (for blob storage view)
+  async getAllFiles(): Promise<FileItem[]> {
+    const response = await this.get<FileListResponse>("/files");
+    return response.files;
+  }
+
+  // Download file by ID
+  async downloadFile(
+    fileId: string,
+    variant: FileVariant = "original"
+  ): Promise<Blob> {
+    const response = await this.client.get(`/files/${fileId}`, {
+      params: { variant },
+      responseType: "blob",
+    });
+    return response.data;
+  }
+
+  // Get file as base64
+  async getFileAsBase64(
+    fileId: string,
+    variant: FileVariant = "original"
+  ): Promise<FileBase64Response> {
+    return this.get<FileBase64Response>(
+      `/files/${fileId}/base64?variant=${variant}`
+    );
+  }
+
+  // Delete file
+  async deleteFile(fileId: string): Promise<void> {
+    return this.delete<void>(`/files/${fileId}`);
+  }
+
+  // Get files by field and record
+  async getFilesByField(
+    fieldId: string,
+    recordId: string
+  ): Promise<FileItem[]> {
+    return this.get<FileItem[]>(`/files/field/${fieldId}/record/${recordId}`);
+  }
+
+  // Get storage statistics
+  async getStorageStats(): Promise<StorageStatsResponse> {
+    return this.get<StorageStatsResponse>("/files/storage/stats");
+  }
+
+  // Get file metadata by ID
+  async getFileMetadata(fileId: string): Promise<FileItem> {
+    return this.get<FileItem>(`/files/${fileId}/metadata`);
+  }
+
   // Auth methods
   async login(email: string, password: string): Promise<AuthResponse> {
     return this.post<AuthResponse>("/auth/login", {
@@ -187,6 +402,33 @@ class ApiService {
   async logout(): Promise<void> {
     return this.post<void>("/auth/logout");
   }
+}
+
+// API Response types (snake_case from backend)
+interface ApiEntity {
+  id: string;
+  project_id: string;
+  name: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ApiField {
+  id: string;
+  entity_id: string;
+  name: string;
+  type: string;
+  is_required: number; // 0 or 1 (boolean as integer)
+  is_unique: number;
+  default_value: string | null;
+  max_length: number | null;
+  description: string | null;
+  accepts_multiple: number;
+  max_file_size: number | null;
+  allowed_extensions: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 // Export singleton instance

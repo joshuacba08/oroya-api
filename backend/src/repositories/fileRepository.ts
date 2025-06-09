@@ -30,6 +30,12 @@ export interface CreateFileData {
   thumbnail_path?: string;
 }
 
+export interface UpdateFileData {
+  original_name?: string;
+  compressed_path?: string;
+  thumbnail_path?: string;
+}
+
 export interface FieldFile {
   id: string;
   field_id: string;
@@ -92,6 +98,24 @@ export class FileRepository {
   }
 
   /**
+   * Obtener todos los archivos
+   */
+  findAll(): Promise<FileRecord[]> {
+    return new Promise((resolve, reject) => {
+      try {
+        const query = "SELECT * FROM files ORDER BY created_at DESC";
+        const db = this.getDb();
+        const stmt = db.prepare(query);
+        const files = stmt.all() as FileRecord[];
+
+        resolve(files);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  /**
    * Obtener un archivo por ID
    */
   findById(id: string): Promise<FileRecord | null> {
@@ -145,6 +169,61 @@ export class FileRepository {
         const result = stmt.run(id);
 
         resolve(result.changes > 0);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  /**
+   * Actualizar un archivo
+   */
+  update(id: string, data: UpdateFileData): Promise<FileRecord | null> {
+    return new Promise((resolve, reject) => {
+      try {
+        const fields: string[] = [];
+        const values: any[] = [];
+
+        if (data.original_name !== undefined) {
+          fields.push("original_name = ?");
+          values.push(data.original_name);
+        }
+
+        if (data.compressed_path !== undefined) {
+          fields.push("compressed_path = ?");
+          values.push(data.compressed_path);
+        }
+
+        if (data.thumbnail_path !== undefined) {
+          fields.push("thumbnail_path = ?");
+          values.push(data.thumbnail_path);
+        }
+
+        if (fields.length === 0) {
+          // Si no hay campos para actualizar, devolver el archivo actual
+          this.findById(id).then(resolve).catch(reject);
+          return;
+        }
+
+        fields.push("updated_at = CURRENT_TIMESTAMP");
+        values.push(id);
+        const query = `UPDATE files SET ${fields.join(", ")} WHERE id = ?`;
+
+        const db = this.getDb();
+        const stmt = db.prepare(query);
+        const result = stmt.run(...values);
+
+        if (result.changes === 0) {
+          resolve(null); // Archivo no encontrado
+          return;
+        }
+
+        // Obtener el archivo actualizado
+        const selectQuery = "SELECT * FROM files WHERE id = ?";
+        const selectStmt = db.prepare(selectQuery);
+        const file = selectStmt.get(id) as FileRecord;
+
+        resolve(file);
       } catch (error) {
         reject(error);
       }
@@ -263,6 +342,65 @@ export class FileRepository {
         const files = stmt.all() as FileRecord[];
 
         resolve(files);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  /**
+   * Obtener estadísticas de almacenamiento
+   */
+  getStorageStats(): Promise<{
+    totalFiles: number;
+    totalSize: number;
+    imagesCount: number;
+    documentsCount: number;
+    orphanFilesCount: number;
+  }> {
+    return new Promise((resolve, reject) => {
+      try {
+        const db = this.getDb();
+
+        // Total de archivos
+        const totalFilesQuery = "SELECT COUNT(*) as count FROM files";
+        const totalFilesStmt = db.prepare(totalFilesQuery);
+        const totalFiles = (totalFilesStmt.get() as { count: number }).count;
+
+        // Tamaño total
+        const totalSizeQuery =
+          "SELECT COALESCE(SUM(size), 0) as total FROM files";
+        const totalSizeStmt = db.prepare(totalSizeQuery);
+        const totalSize = (totalSizeStmt.get() as { total: number }).total;
+
+        // Conteo de imágenes
+        const imagesQuery =
+          "SELECT COUNT(*) as count FROM files WHERE is_image = 1";
+        const imagesStmt = db.prepare(imagesQuery);
+        const imagesCount = (imagesStmt.get() as { count: number }).count;
+
+        // Conteo de documentos (no imágenes)
+        const documentsQuery =
+          "SELECT COUNT(*) as count FROM files WHERE is_image = 0";
+        const documentsStmt = db.prepare(documentsQuery);
+        const documentsCount = (documentsStmt.get() as { count: number }).count;
+
+        // Archivos huérfanos
+        const orphanQuery = `
+          SELECT COUNT(*) as count FROM files f
+          LEFT JOIN field_files ff ON f.id = ff.file_id
+          WHERE ff.file_id IS NULL
+        `;
+        const orphanStmt = db.prepare(orphanQuery);
+        const orphanFilesCount = (orphanStmt.get() as { count: number }).count;
+
+        resolve({
+          totalFiles,
+          totalSize,
+          imagesCount,
+          documentsCount,
+          orphanFilesCount,
+        });
       } catch (error) {
         reject(error);
       }

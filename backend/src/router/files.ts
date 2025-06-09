@@ -224,6 +224,60 @@ router.post("/upload/base64", async (req, res) => {
 
 /**
  * @swagger
+ * /api/files:
+ *   get:
+ *     summary: Listar todos los archivos
+ *     tags: [Files]
+ *     responses:
+ *       200:
+ *         description: Lista de todos los archivos
+ */
+router.get("/", async (req, res) => {
+  try {
+    const files = await fileRepository.findAll();
+
+    res.json({
+      success: true,
+      files,
+      total: files.length,
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: error.message || "Error obteniendo la lista de archivos",
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/files/storage/stats:
+ *   get:
+ *     summary: Obtener estadísticas de almacenamiento
+ *     tags: [Files]
+ *     responses:
+ *       200:
+ *         description: Estadísticas de almacenamiento
+ */
+router.get("/storage/stats", async (req, res) => {
+  try {
+    const stats = await fileRepository.getStorageStats();
+
+    res.json({
+      success: true,
+      stats,
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message:
+        error.message || "Error obteniendo estadísticas de almacenamiento",
+    });
+  }
+});
+
+/**
+ * @swagger
  * /api/files/{id}:
  *   get:
  *     summary: Descargar archivo por ID
@@ -368,6 +422,102 @@ router.delete("/:id", async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || "Error eliminando archivo",
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/files/{id}:
+ *   put:
+ *     summary: Actualizar información de un archivo
+ *     tags: [Files]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID del archivo
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               original_name:
+ *                 type: string
+ *                 description: Nuevo nombre original del archivo
+ *                 example: "documento_actualizado.pdf"
+ *     responses:
+ *       200:
+ *         description: Archivo actualizado exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Archivo actualizado exitosamente"
+ *                 file:
+ *                   $ref: '#/components/schemas/File'
+ *       400:
+ *         description: Error en los datos enviados
+ *       404:
+ *         description: Archivo no encontrado
+ */
+router.put("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { original_name } = req.body;
+
+    // Verificar que el archivo existe
+    const fileExists = await fileRepository.exists(id);
+    if (!fileExists) {
+      res.status(404).json({
+        success: false,
+        message: "Archivo no encontrado",
+      });
+      return;
+    }
+
+    // Validar que se proporciona al menos un campo para actualizar
+    if (!original_name) {
+      res.status(400).json({
+        success: false,
+        message: "Debe proporcionar al menos un campo para actualizar",
+      });
+      return;
+    }
+
+    // Actualizar archivo
+    const updatedFile = await fileRepository.update(id, {
+      original_name,
+    });
+
+    if (!updatedFile) {
+      res.status(404).json({
+        success: false,
+        message: "Archivo no encontrado",
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      message: "Archivo actualizado exitosamente",
+      file: updatedFile,
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: error.message || "Error actualizando archivo",
     });
   }
 });
