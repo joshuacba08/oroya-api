@@ -17,7 +17,7 @@ const LogsTerminal: React.FC<LogsTerminalProps> = ({
   const terminalRef = useRef<HTMLDivElement>(null);
   const terminal = useRef<Terminal | null>(null);
   const fitAddon = useRef<FitAddon | null>(null);
-  const isMountedRef = useRef(true);
+  const isMountedRef = useRef(false);
   const [isConnected, setIsConnected] = useState(false);
   const [filters, setFilters] = useState<LogFilters>({ projectId });
   const [logCount, setLogCount] = useState(0);
@@ -47,6 +47,9 @@ const LogsTerminal: React.FC<LogsTerminalProps> = ({
 
   useEffect(() => {
     if (!terminalRef.current) return;
+
+    // Set mounted state to true
+    isMountedRef.current = true;
 
     // Initialize terminal with modern dark theme
     terminal.current = new Terminal({
@@ -217,18 +220,17 @@ const LogsTerminal: React.FC<LogsTerminalProps> = ({
   useEffect(() => {
     // Connect to logs service
     console.log("🎯 LogsTerminal: Iniciando conexión a logs service");
+    console.log("🎯 LogsTerminal: Estado mounted:", isMountedRef.current);
     logsService.connect();
 
     const cleanupNewLog = logsService.onNewLog((log: LogEntry) => {
       console.log("🎯 LogsTerminal: Log recibido en componente:", log);
-      if (!terminal.current || isPaused || !isMountedRef.current) {
+      if (!terminal.current || isPaused) {
         console.log(
           "🚫 LogsTerminal: Log ignorado - terminal:",
           !!terminal.current,
           "paused:",
-          isPaused,
-          "mounted:",
-          isMountedRef.current
+          isPaused
         );
         return;
       }
@@ -280,6 +282,7 @@ const LogsTerminal: React.FC<LogsTerminalProps> = ({
           terminal.current.writeln(logLine);
         }
 
+        console.log("✅ LogsTerminal: Log mostrado en terminal exitosamente");
         setLogCount((prev) => prev + 1);
       } catch (error) {
         console.error("Error displaying log:", error);
@@ -287,6 +290,7 @@ const LogsTerminal: React.FC<LogsTerminalProps> = ({
     });
 
     // Join logs with current filters
+    console.log("🎯 LogsTerminal: Uniéndose a logs con filtros:", filters);
     logsService.joinLogs(filters);
 
     // Update connection status

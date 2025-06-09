@@ -64,6 +64,8 @@ class LogsService {
 
     this.socket.on("connect", () => {
       console.log("✅ Conectado al servidor de logs");
+      console.log("🔗 Socket ID:", this.socket?.id);
+      console.log("🔗 Socket connected:", this.socket?.connected);
     });
 
     this.socket.on("disconnect", () => {
@@ -86,6 +88,20 @@ class LogsService {
     this.socket.on("connect_error", (error) => {
       console.error("Error de conexión:", error);
     });
+
+    // Debug: escuchar todos los eventos
+    if (this.socket) {
+      const originalEmit = this.socket.emit;
+      this.socket.emit = function (...args) {
+        console.log("📤 Enviando evento:", args[0], args.slice(1));
+        return originalEmit.apply(this, args);
+      };
+
+      // Listener genérico para eventos entrantes
+      this.socket.onAny((eventName, ...args) => {
+        console.log("📥 Evento recibido:", eventName, args);
+      });
+    }
   }
 
   connect() {
